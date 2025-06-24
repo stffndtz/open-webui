@@ -335,6 +335,9 @@ class Loader:
                 file_path=file_path,
                 api_endpoint=self.kwargs.get("DOCUMENT_INTELLIGENCE_ENDPOINT"),
                 api_key=self.kwargs.get("DOCUMENT_INTELLIGENCE_KEY"),
+                api_model='prebuilt-read',
+                api_version='2024-11-30',
+                mode='page'
             )
         elif (
             self.engine == "mistral_ocr"
