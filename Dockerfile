@@ -133,7 +133,13 @@ RUN if [ "$USE_OLLAMA" = "true" ]; then \
     fi
 
 # install .NET SDK for later usage
-RUN apt-get update && apt-get install -y dotnet-sdk-9.0
+RUN wget https://packages.microsoft.com/config/debian/12/packages-microsoft-prod.deb -O packages-microsoft-prod.deb && \
+    dpkg -i packages-microsoft-prod.deb && \
+    rm packages-microsoft-prod.deb && \
+    apt-get update && \
+    apt-get install -y dotnet-sdk-9.0 dotnet-runtime-9.0 && \
+    # cleanup
+    rm -rf /var/lib/apt/lists/*;
 
 # install python dependencies
 COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
