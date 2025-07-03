@@ -255,16 +255,16 @@ class QdrantClient(VectorDBBase):
             # )
 
             # Create payload indexes for efficient filtering
-            # self.client.create_payload_index(
-            #     collection_name=mt_collection_name,
-            #     field_name="metadata.hash",
-            #     field_schema=models.KeywordIndexParams(
-            #         type=models.KeywordIndexType.KEYWORD,
-            #         is_tenant=False,
-            #         on_disk=False,
-            #     ),
-            #     wait=False,
-            # )
+            self.client.create_payload_index(
+                collection_name=mt_collection_name,
+                field_name="metadata.hash",
+                field_schema=models.KeywordIndexParams(
+                    type=models.KeywordIndexType.KEYWORD,
+                    is_tenant=False,
+                    on_disk=False,
+                ),
+                wait=False,
+            )
 
             # self.client.create_payload_index(
             #     collection_name=mt_collection_name,
@@ -503,7 +503,8 @@ class QdrantClient(VectorDBBase):
         """
         Query points with filters and tenant isolation.
         """
-        if not self.client:
+
+        if not self.has_collection(collection_name):
             return None
 
         # Map to multi-tenant collection and tenant ID
