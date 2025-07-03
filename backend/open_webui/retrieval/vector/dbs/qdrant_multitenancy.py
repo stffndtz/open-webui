@@ -320,7 +320,8 @@ class QdrantClient(VectorDBBase):
         """
         mt_collection, tenant_id = self._get_collection_and_tenant_id(collection_name)
         log.info(f"has_collection: {mt_collection}")
-        return self.client.collection_exists(mt_collection)
+        collection_exists = self.client.collection_exists(mt_collection)
+        return collection_exists.exists
         # if not self.client:
         #     return False
 
