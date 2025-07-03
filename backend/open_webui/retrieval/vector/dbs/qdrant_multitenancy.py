@@ -505,8 +505,8 @@ class QdrantClient(VectorDBBase):
 
         log.info(f"query: {collection_name} {filter} {limit}")
 
-        if not self.has_collection(collection_name):
-            return None
+        # if not self.has_collection(collection_name):
+        #     return None
 
         # Map to multi-tenant collection and tenant ID
         mt_collection, tenant_id = self._get_collection_and_tenant_id(collection_name)
@@ -533,8 +533,10 @@ class QdrantClient(VectorDBBase):
         combined_filter = models.Filter(must=[tenant_filter, *field_conditions])
 
         if not self.has_collection(mt_collection):
+            log.info(f"collection {mt_collection} doesn't exist, query returns None")
             return None
         try:
+            log.info(f"querying collection {mt_collection}")
             # Try the query directly - most of the time collection should exist
             points = self.client.query_points(
                 collection_name=mt_collection,
