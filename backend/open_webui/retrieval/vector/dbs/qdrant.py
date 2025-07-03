@@ -80,10 +80,22 @@ class QdrantClient(VectorDBBase):
         self.client.create_collection(
             collection_name=collection_name_with_prefix,
             vectors_config=models.VectorParams(
-                size=dimension,
+                size=768,
                 distance=models.Distance.COSINE,
                 on_disk=self.QDRANT_ON_DISK,
             ),
+            quantization_config=models.ScalarQuantization(
+                scalar=models.ScalarQuantizationConfig(
+                    type=models.ScalarType.INT8,
+                    always_ram=True,
+                ),
+            ),
+            # optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
+            hnsw_config=models.HnswConfigDiff(
+                    m=32,
+                    ef_construct=64,
+                    on_disk=self.QDRANT_ON_DISK,
+                ),
         )
 
         log.info(f"collection {collection_name_with_prefix} successfully created!")
@@ -125,6 +137,9 @@ class QdrantClient(VectorDBBase):
             collection_name=f"{self.collection_prefix}_{collection_name}",
             query=vectors[0],
             limit=limit,
+            search_params=models.SearchParams(
+                quantization=models.QuantizationSearchParams(rescore=False)
+            ),
         )
         get_result = self._result_to_get_result(query_response.points)
         return SearchResult(
@@ -155,6 +170,9 @@ class QdrantClient(VectorDBBase):
                 collection_name=f"{self.collection_prefix}_{collection_name}",
                 query_filter=models.Filter(should=field_conditions),
                 limit=limit,
+                search_params=models.SearchParams(
+                    quantization=models.QuantizationSearchParams(rescore=False)
+                ),
             )
             return self._result_to_get_result(points.points)
         except Exception as e:
