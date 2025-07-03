@@ -320,8 +320,7 @@ class QdrantClient(VectorDBBase):
         """
         mt_collection, tenant_id = self._get_collection_and_tenant_id(collection_name)
         log.info(f"has_collection: {mt_collection}")
-        collection_exists = self.client.collection_exists(mt_collection)
-        return collection_exists.exists
+        return self.client.collection_exists(mt_collection)
         # if not self.client:
         #     return False
 
@@ -504,6 +503,8 @@ class QdrantClient(VectorDBBase):
         Query points with filters and tenant isolation.
         """
 
+        log.info(f"query: {collection_name} {filter} {limit}")
+
         if not self.has_collection(collection_name):
             return None
 
@@ -614,11 +615,7 @@ class QdrantClient(VectorDBBase):
             The operation result (for upsert) or None (for insert)
         """
         try:
-            if operation_name == "insert":
-                self.client.upsert(mt_collection, points)
-                return None
-            else:  # upsert
-                return self.client.upsert(mt_collection, points)
+            return self.client.upsert(mt_collection, points)
         except (UnexpectedResponse, grpc.RpcError) as e:
             # Handle collection not found
             if self._is_collection_not_found_error(e):
@@ -630,11 +627,11 @@ class QdrantClient(VectorDBBase):
                     mt_collection_name=mt_collection, dimension=dimension
                 )
                 # Try operation again - no need for dimension adjustment since we just created with correct dimensions
-                if operation_name == "insert":
-                    self.client.upsert(mt_collection, points)
-                    return None
-                else:  # upsert
-                    return self.client.upsert(mt_collection, points)
+                # if operation_name == "insert":
+                    
+                #     return None
+                # else:  # upsert
+                return self.client.upsert(mt_collection, points)
 
             # Handle dimension mismatch
             elif self._is_dimension_mismatch_error(e):
@@ -713,6 +710,7 @@ class QdrantClient(VectorDBBase):
         """
         Upsert items with tenant ID.
         """
+        log.info(f"upsert: {collection_name} {items}")
         if not self.client or not items:
             return None
 

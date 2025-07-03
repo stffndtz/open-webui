@@ -1144,6 +1144,7 @@ def save_docs_to_vector_db(
                 raise ValueError(ERROR_MESSAGES.DUPLICATE_CONTENT)
 
     if split:
+        log.info(f"splitting docs")
         if request.app.state.config.TEXT_SPLITTER in ["", "character"]:
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=request.app.state.config.CHUNK_SIZE,
@@ -1165,7 +1166,10 @@ def save_docs_to_vector_db(
         else:
             raise ValueError(ERROR_MESSAGES.DEFAULT("Invalid text splitter"))
 
+        log.info(f"starting to split docs")
         docs = text_splitter.split_documents(docs)
+
+    log.info(f"docs: {docs}")
 
     if len(docs) == 0:
         raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)

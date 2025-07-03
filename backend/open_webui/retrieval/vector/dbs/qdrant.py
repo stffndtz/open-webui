@@ -153,10 +153,9 @@ class QdrantClient(VectorDBBase):
         ]
 
     def has_collection(self, collection_name: str) -> bool:
-        collection_exists = self.client.collection_exists(
+        return self.client.collection_exists(
             f"{self.collection_prefix}_{collection_name}"
         )
-        return collection_exists.exists
 
     def delete_collection(self, collection_name: str):
         return self.client.delete_collection(
