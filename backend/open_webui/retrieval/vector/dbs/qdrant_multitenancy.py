@@ -246,8 +246,9 @@ class QdrantClient(VectorDBBase):
                     min_token_len=2,
                     max_token_len=15,
                     lowercase=True,
-                    on_disk=False,
+                    on_disk=self.QDRANT_ON_DISK,
                 ),
+                wait=False,
             )
 
             # Create payload indexes for efficient filtering
@@ -259,6 +260,7 @@ class QdrantClient(VectorDBBase):
                     is_tenant=False,
                     on_disk=False,
                 ),
+                wait=False,
             )
 
             self.client.create_payload_index(
@@ -268,7 +270,8 @@ class QdrantClient(VectorDBBase):
                     type=models.KeywordIndexType.KEYWORD,
                     is_tenant=False,
                     on_disk=False,
-                ),
+                ),  
+                wait=False,
             )
 
             log.info(
@@ -518,6 +521,8 @@ class QdrantClient(VectorDBBase):
         # Combine tenant filter with metadata filters
         combined_filter = models.Filter(must=[tenant_filter, *field_conditions])
 
+        if not self.has_collection(mt_collection):
+            return None
         try:
             # Try the query directly - most of the time collection should exist
             points = self.client.query_points(
