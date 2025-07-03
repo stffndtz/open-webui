@@ -184,6 +184,9 @@ class QdrantClient(VectorDBBase):
         points = self.client.query_points(
             collection_name=f"{self.collection_prefix}_{collection_name}",
             limit=NO_LIMIT,  # otherwise qdrant would set limit to 10!
+            search_params=models.SearchParams(
+                quantization=models.QuantizationSearchParams(rescore=False)
+            ),
         )
         return self._result_to_get_result(points.points)
 
