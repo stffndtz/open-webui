@@ -236,7 +236,7 @@ class QdrantClient(VectorDBBase):
                     is_tenant=True,
                     on_disk=False,
                 ),
-                wait=False,
+                wait=True,
             )
 
             # create payload index for text search
@@ -318,41 +318,45 @@ class QdrantClient(VectorDBBase):
         """
         Check if a logical collection exists by checking for any points with the tenant ID.
         """
-        if not self.client:
-            return False
-
-        # Map to multi-tenant collection and tenant ID
-        mt_collection, tenant_id = self._get_collection_and_tenant_id(collection_name)
-
-        # Create tenant filter
-        tenant_filter = models.FieldCondition(
-            key="tenant_id", match=models.MatchValue(value=tenant_id)
+        log.info(f"has_collection: {collection_name} {self.client.collection_exists(f'{self.collection_prefix}_{collection_name}')}")
+        return self.client.collection_exists(
+            f"{self.collection_prefix}_{collection_name}"
         )
+        # if not self.client:
+        #     return False
 
-        try:
-            # Try directly querying - most of the time collection should exist
-            response = self.client.query_points(
-                collection_name=mt_collection,
-                query_filter=models.Filter(must=[tenant_filter]),
-                limit=1,
-                search_params=models.SearchParams(hnsw_ef=100,exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
-            )
+        # # Map to multi-tenant collection and tenant ID
+        # mt_collection, tenant_id = self._get_collection_and_tenant_id(collection_name)
 
-            # Collection exists with this tenant ID if there are points
-            return len(response.points) > 0
-        except (UnexpectedResponse, grpc.RpcError) as e:
-            if self._is_collection_not_found_error(e):
-                log.debug(f"Collection {mt_collection} doesn't exist")
-                return False
-            else:
-                # For other API errors, log and return False
-                _, error_msg = self._extract_error_message(e)
-                log.warning(f"Unexpected Qdrant error: {error_msg}")
-                return False
-        except Exception as e:
-            # For any other errors, log and return False
-            log.debug(f"Error checking collection {mt_collection}: {e}")
-            return False
+        # # Create tenant filter
+        # tenant_filter = models.FieldCondition(
+        #     key="tenant_id", match=models.MatchValue(value=tenant_id)
+        # )
+
+        # try:
+        #     # Try directly querying - most of the time collection should exist
+        #     response = self.client.query_points(
+        #         collection_name=mt_collection,
+        #         query_filter=models.Filter(must=[tenant_filter]),
+        #         limit=1,
+        #         search_params=models.SearchParams(hnsw_ef=100,exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
+        #     )
+
+        #     # Collection exists with this tenant ID if there are points
+        #     return len(response.points) > 0
+        # except (UnexpectedResponse, grpc.RpcError) as e:
+        #     if self._is_collection_not_found_error(e):
+        #         log.debug(f"Collection {mt_collection} doesn't exist")
+        #         return False
+        #     else:
+        #         # For other API errors, log and return False
+        #         _, error_msg = self._extract_error_message(e)
+        #         log.warning(f"Unexpected Qdrant error: {error_msg}")
+        #         return False
+        # except Exception as e:
+        #     # For any other errors, log and return False
+        #     log.debug(f"Error checking collection {mt_collection}: {e}")
+        #     return False
 
     def delete(
         self,

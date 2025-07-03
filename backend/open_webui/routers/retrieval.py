@@ -1238,11 +1238,15 @@ def save_docs_to_vector_db(
             ),
         )
 
+        log.info(f"embedding {len(texts)} texts")
+
         embeddings = embedding_function(
             list(map(lambda x: x.replace("\n", " "), texts)),
             prefix=RAG_EMBEDDING_CONTENT_PREFIX,
             user=user,
         )
+
+        log.info(f"adding to collection {collection_name} with {len(embeddings)} embeddings")
 
         items = [
             {
@@ -1253,6 +1257,8 @@ def save_docs_to_vector_db(
             }
             for idx, text in enumerate(texts)
         ]
+
+        log.info(f"items: {items} now calling VECTOR_DB_CLIENT.insert")
 
         VECTOR_DB_CLIENT.insert(
             collection_name=collection_name,
