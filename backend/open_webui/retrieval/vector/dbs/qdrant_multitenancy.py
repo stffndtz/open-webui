@@ -210,6 +210,9 @@ class QdrantClient(VectorDBBase):
                     distance=models.Distance.COSINE,
                     on_disk=self.QDRANT_ON_DISK,
                 ),
+                # optimizers_config=models.OptimizersConfigDiff(
+                #     indexing_threshold=0,
+                # ),
                 # quantization_config=models.ScalarQuantization(
                 #     scalar=models.ScalarQuantizationConfig(
                 #         type=models.ScalarType.INT8,
@@ -217,13 +220,12 @@ class QdrantClient(VectorDBBase):
                 #     ),
                 # ),
                 hnsw_config=models.HnswConfigDiff(
-                    payload_m=32,  # Enable per-tenant indexing
+                    payload_m=16,  # Enable per-tenant indexing
                     m=0,
-                    ef_construct=64,
+                    ef_construct=32,
                     on_disk=self.QDRANT_ON_DISK,
                 ),
             )
-
 
             # Create tenant ID payload index
             self.client.create_payload_index(
@@ -253,27 +255,27 @@ class QdrantClient(VectorDBBase):
             # )
 
             # Create payload indexes for efficient filtering
-            self.client.create_payload_index(
-                collection_name=mt_collection_name,
-                field_name="metadata.hash",
-                field_schema=models.KeywordIndexParams(
-                    type=models.KeywordIndexType.KEYWORD,
-                    is_tenant=False,
-                    on_disk=False,
-                ),
-                wait=False,
-            )
+            # self.client.create_payload_index(
+            #     collection_name=mt_collection_name,
+            #     field_name="metadata.hash",
+            #     field_schema=models.KeywordIndexParams(
+            #         type=models.KeywordIndexType.KEYWORD,
+            #         is_tenant=False,
+            #         on_disk=False,
+            #     ),
+            #     wait=False,
+            # )
 
-            self.client.create_payload_index(
-                collection_name=mt_collection_name,
-                field_name="metadata.file_id",
-                field_schema=models.KeywordIndexParams(
-                    type=models.KeywordIndexType.KEYWORD,
-                    is_tenant=False,
-                    on_disk=False,
-                ),  
-                wait=False,
-            )
+            # self.client.create_payload_index(
+            #     collection_name=mt_collection_name,
+            #     field_name="metadata.file_id",
+            #     field_schema=models.KeywordIndexParams(
+            #         type=models.KeywordIndexType.KEYWORD,
+            #         is_tenant=False,
+            #         on_disk=False,
+            #     ),  
+            #     wait=False,
+            # )
 
             log.info(
                 f"Multi-tenant collection {mt_collection_name} created with dimension {dimension}!"
@@ -333,6 +335,7 @@ class QdrantClient(VectorDBBase):
                 collection_name=mt_collection,
                 query_filter=models.Filter(must=[tenant_filter]),
                 limit=1,
+                search_params=models.SearchParams(hnsw_ef=100,exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
             )
 
             # Collection exists with this tenant ID if there are points
@@ -463,6 +466,7 @@ class QdrantClient(VectorDBBase):
                 query=vectors[0],
                 prefetch=prefetch_query,
                 limit=limit,
+                search_params=models.SearchParams(hnsw_ef=100, exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
             )
 
             get_result = self._result_to_get_result(query_response.points)
@@ -530,6 +534,7 @@ class QdrantClient(VectorDBBase):
                 collection_name=mt_collection,
                 query_filter=combined_filter,
                 limit=limit,
+                search_params=models.SearchParams(hnsw_ef=100, exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
             )
 
             return self._result_to_get_result(points.points)
@@ -570,6 +575,7 @@ class QdrantClient(VectorDBBase):
                 collection_name=mt_collection,
                 query_filter=models.Filter(must=[tenant_filter]),
                 limit=NO_LIMIT,
+                search_params=models.SearchParams(hnsw_ef=100, exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
             )
 
             return self._result_to_get_result(points.points)
