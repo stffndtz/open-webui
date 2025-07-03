@@ -80,7 +80,7 @@ class QdrantClient(VectorDBBase):
         self.client.create_collection(
             collection_name=collection_name_with_prefix,
             vectors_config=models.VectorParams(
-                size=768,
+                size=dimension,
                 distance=models.Distance.COSINE,
                 on_disk=self.QDRANT_ON_DISK,
             ),
@@ -92,10 +92,10 @@ class QdrantClient(VectorDBBase):
             ),
             # optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
             hnsw_config=models.HnswConfigDiff(
-                    m=32,
-                    ef_construct=64,
-                    on_disk=self.QDRANT_ON_DISK,
-                ),
+                m=32,
+                ef_construct=64,
+                on_disk=self.QDRANT_ON_DISK,
+            ),
         )
 
          # Create payload indexes for efficient filtering
@@ -128,6 +128,21 @@ class QdrantClient(VectorDBBase):
             )
 
     def _create_points(self, items: list[VectorItem]):
+
+        # depending on the document type, we need to create the points differently
+        # this is based on the embedding type from save_docs_to_vector_db
+        # {
+        #         "id": str(uuid.uuid4()),
+        #         "text": text,
+        #         "vector": embeddings[idx],
+        #         "metadata": metadatas[idx],
+        #     }
+        # pointers:
+        # models.Document
+        # https://qdrant.tech/documentation/embeddings/openai/
+        
+
+
         return [
             PointStruct(
                 id=item["id"],
