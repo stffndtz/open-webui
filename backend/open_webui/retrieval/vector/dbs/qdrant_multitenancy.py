@@ -210,12 +210,20 @@ class QdrantClient(VectorDBBase):
                     distance=models.Distance.COSINE,
                     on_disk=self.QDRANT_ON_DISK,
                 ),
+                quantization_config=models.ScalarQuantization(
+                    scalar=models.ScalarQuantizationConfig(
+                        type=models.ScalarType.INT8,
+                        always_ram=True,
+                    ),
+                ),
                 hnsw_config=models.HnswConfigDiff(
-                    payload_m=16,  # Enable per-tenant indexing
+                    payload_m=32,  # Enable per-tenant indexing
                     m=0,
+                    ef_construct=64,
                     on_disk=self.QDRANT_ON_DISK,
                 ),
             )
+
 
             # Create tenant ID payload index
             self.client.create_payload_index(
@@ -224,9 +232,43 @@ class QdrantClient(VectorDBBase):
                 field_schema=models.KeywordIndexParams(
                     type=models.KeywordIndexType.KEYWORD,
                     is_tenant=True,
-                    on_disk=self.QDRANT_ON_DISK,
+                    on_disk=False,
                 ),
-                wait=True,
+                wait=False,
+            )
+
+            self.client.create_payload_index(
+                collection_name=mt_collection_name,
+                field_name="text",
+                field_schema=models.TextIndexParams(
+                    type="text",
+                    tokenizer=models.TokenizerType.WORD,
+                    min_token_len=2,
+                    max_token_len=15,
+                    lowercase=True,
+                    on_disk=False,
+                ),
+            )
+
+            # Create payload indexes for efficient filtering
+            self.client.create_payload_index(
+                collection_name=mt_collection_name,
+                field_name="metadata.hash",
+                field_schema=models.KeywordIndexParams(
+                    type=models.KeywordIndexType.KEYWORD,
+                    is_tenant=False,
+                    on_disk=False,
+                ),
+            )
+
+            self.client.create_payload_index(
+                collection_name=mt_collection_name,
+                field_name="metadata.file_id",
+                field_schema=models.KeywordIndexParams(
+                    type=models.KeywordIndexType.KEYWORD,
+                    is_tenant=False,
+                    on_disk=False,
+                ),
             )
 
             log.info(
@@ -556,7 +598,7 @@ class QdrantClient(VectorDBBase):
         """
         try:
             if operation_name == "insert":
-                self.client.upload_points(mt_collection, points)
+                self.client.upsert(mt_collection, points)
                 return None
             else:  # upsert
                 return self.client.upsert(mt_collection, points)
@@ -572,7 +614,7 @@ class QdrantClient(VectorDBBase):
                 )
                 # Try operation again - no need for dimension adjustment since we just created with correct dimensions
                 if operation_name == "insert":
-                    self.client.upload_points(mt_collection, points)
+                    self.client.upsert(mt_collection, points)
                     return None
                 else:  # upsert
                     return self.client.upsert(mt_collection, points)
@@ -616,7 +658,7 @@ class QdrantClient(VectorDBBase):
                     ]
                 # Try operation again with adjusted dimensions
                 if operation_name == "insert":
-                    self.client.upload_points(mt_collection, points)
+                    self.client.upsert(mt_collection, points)
                     return None
                 else:  # upsert
                     return self.client.upsert(mt_collection, points)
