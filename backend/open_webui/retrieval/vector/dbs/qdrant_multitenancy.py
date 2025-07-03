@@ -210,12 +210,12 @@ class QdrantClient(VectorDBBase):
                     distance=models.Distance.COSINE,
                     on_disk=self.QDRANT_ON_DISK,
                 ),
-                quantization_config=models.ScalarQuantization(
-                    scalar=models.ScalarQuantizationConfig(
-                        type=models.ScalarType.INT8,
-                        always_ram=True,
-                    ),
-                ),
+                # quantization_config=models.ScalarQuantization(
+                #     scalar=models.ScalarQuantizationConfig(
+                #         type=models.ScalarType.INT8,
+                #         always_ram=True,
+                #     ),
+                # ),
                 hnsw_config=models.HnswConfigDiff(
                     payload_m=32,  # Enable per-tenant indexing
                     m=0,
@@ -237,19 +237,20 @@ class QdrantClient(VectorDBBase):
                 wait=False,
             )
 
-            self.client.create_payload_index(
-                collection_name=mt_collection_name,
-                field_name="text",
-                field_schema=models.TextIndexParams(
-                    type="text",
-                    tokenizer=models.TokenizerType.WORD,
-                    min_token_len=2,
-                    max_token_len=15,
-                    lowercase=True,
-                    on_disk=self.QDRANT_ON_DISK,
-                ),
-                wait=False,
-            )
+            # create payload index for text search
+            # self.client.create_payload_index(
+            #     collection_name=mt_collection_name,
+            #     field_name="text",
+            #     field_schema=models.TextIndexParams(
+            #         type="text",
+            #         tokenizer=models.TokenizerType.WORD,
+            #         min_token_len=2,
+            #         max_token_len=15,
+            #         lowercase=True,
+            #         on_disk=self.QDRANT_ON_DISK,
+            #     ),
+            #     wait=False,
+            # )
 
             # Create payload indexes for efficient filtering
             self.client.create_payload_index(
