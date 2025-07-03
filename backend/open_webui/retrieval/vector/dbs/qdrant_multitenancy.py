@@ -318,10 +318,9 @@ class QdrantClient(VectorDBBase):
         """
         Check if a logical collection exists by checking for any points with the tenant ID.
         """
-        log.info(f"has_collection: {collection_name} {self.client.collection_exists(f'{self.collection_prefix}_{collection_name}')}")
-        return self.client.collection_exists(
-            f"{self.collection_prefix}_{collection_name}"
-        )
+        mt_collection, tenant_id = self._get_collection_and_tenant_id(collection_name)
+        log.info(f"has_collection: {mt_collection}")
+        return self.client.collection_exists(mt_collection)
         # if not self.client:
         #     return False
 
