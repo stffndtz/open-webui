@@ -2,6 +2,7 @@
 	import { io } from 'socket.io-client';
 	import { spring } from 'svelte/motion';
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
+	import microsoftTeams from "@microsoft/teams-js";
 
 	let loadingProgress = spring(0, {
 		stiffness: 0.05
@@ -641,6 +642,33 @@
 			window.removeEventListener('resize', onResize);
 		};
 	});
+
+	if(!token) {
+		try {
+		await microsoftTeams.app.initialize().then( async () => {
+		await microsoftTeams.authentication.authenticate({
+		url: "https://dev.42frontiers.com/oauth/microsoft/login", // Your backend authentication URL
+		width: 600,
+		height: 535,
+		})
+		.then((result) => {
+		console.log("Authentication successful!", result);
+		token = localStorage.token
+		// Handle the result, such as storing the token or updating the UI
+		})
+		.catch((error) => {
+		console.error("Authentication failed", error);
+		// Handle the error, such as displaying an error message to the user
+		});
+		}).catch(() => {
+		console.log("no teams")
+		});
+		} catch {
+		console.log("no ms teams client enviroment")
+		token = null
+		}
+
+			}
 </script>
 
 <svelte:head>

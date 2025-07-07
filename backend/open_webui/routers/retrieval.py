@@ -1166,10 +1166,10 @@ def save_docs_to_vector_db(
         else:
             raise ValueError(ERROR_MESSAGES.DEFAULT("Invalid text splitter"))
 
-        log.info(f"starting to split docs")
+        log.info(f"starting to split docs {len(docs)}")
         docs = text_splitter.split_documents(docs)
 
-    log.info(f"docs: {docs}")
+    log.info(f"docs: {len(docs)}")
 
     if len(docs) == 0:
         raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
