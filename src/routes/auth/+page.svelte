@@ -15,7 +15,7 @@
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import OnBoarding from '$lib/components/OnBoarding.svelte';
-	import microsoftTeams from "@microsoft/teams-js";
+	// import microsoftTeams from "@microsoft/teams-js";
 
 	const i18n = getContext('i18n');
 
@@ -144,7 +144,7 @@
 			goto(redirectPath);
 		}
 		await checkOauthCallback();
-		await microsoftTeams.app.initialize().then(async () => { try { microsoftTeams.authentication.notifySuccess("Success - close now please"); /* await microsoftTeams.app.initialize().then( async () => { microsoftTeams.authentication.notifySuccess(token); }).catch(() => { console.log("no teams") });*/ } catch { console.log('got already token from popup and its already closed'); } }) .catch(() => { console.log('no teams'); });
+		// await microsoftTeams.app.initialize().then(async () => { try { microsoftTeams.authentication.notifySuccess("Success - close now please"); /* await microsoftTeams.app.initialize().then( async () => { microsoftTeams.authentication.notifySuccess(token); }).catch(() => { console.log("no teams") });*/ } catch { console.log('got already token from popup and its already closed'); } }) .catch(() => { console.log('no teams'); });
 		loaded = true;
 		setLogoImage();
 
