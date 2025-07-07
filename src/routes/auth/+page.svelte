@@ -138,15 +138,13 @@
 		}
 	}
 
-	await microsoftTeams.app.initialize().then(async () => { try { microsoftTeams.authentication.notifySuccess("Success - close now please"); /* await microsoftTeams.app.initialize().then( async () => { microsoftTeams.authentication.notifySuccess(token); }).catch(() => { console.log("no teams") });*/ } catch { console.log('got already token from popup and its already closed'); } }) .catch(() => { console.log('no teams'); });
-
 	onMount(async () => {
 		if ($user !== undefined) {
 			const redirectPath = querystringValue('redirect') || '/';
 			goto(redirectPath);
 		}
 		await checkOauthCallback();
-
+		await microsoftTeams.app.initialize().then(async () => { try { microsoftTeams.authentication.notifySuccess("Success - close now please"); /* await microsoftTeams.app.initialize().then( async () => { microsoftTeams.authentication.notifySuccess(token); }).catch(() => { console.log("no teams") });*/ } catch { console.log('got already token from popup and its already closed'); } }) .catch(() => { console.log('no teams'); });
 		loaded = true;
 		setLogoImage();
 
