@@ -16,7 +16,7 @@
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import OnBoarding from '$lib/components/OnBoarding.svelte';
-	import microsoftTeams from '@microsoft/teams-js';
+	import * as microsoftTeams from '@microsoft/teams-js';
 
 	let loaded = false;
 
