@@ -2,6 +2,7 @@
 	import { io } from 'socket.io-client';
 	import { spring } from 'svelte/motion';
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
+	import * as microsoftTeams from '@microsoft/teams-js';
 
 	let loadingProgress = spring(0, {
 		stiffness: 0.05
@@ -443,6 +444,43 @@
 	};
 
 	const TOKEN_EXPIRY_BUFFER = 60; // seconds
+
+	const handleTeamsAuthentication = async () => {
+		try {
+			// Initialize Teams SDK
+			await microsoftTeams.app.initialize();
+
+			// Check if we're in Teams environment
+			const context = await microsoftTeams.app.getContext();
+			console.log('Teams context:', context);
+
+			// Start authentication flow
+			const authResult = await microsoftTeams.authentication.authenticate({
+				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
+				width: 600,
+				height: 535
+			});
+
+			console.log('Teams authentication result:', authResult);
+
+			// The result should contain the token
+			if (authResult) {
+				localStorage.token = authResult;
+				const sessionUser = await getSessionUser(authResult).catch((error) => {
+					toast.error(`${error}`);
+					return null;
+				});
+
+				if (sessionUser) {
+					$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+					await user.set(sessionUser);
+				}
+			}
+		} catch (error) {
+			console.error('Teams authentication error:', error);
+		}
+	};
+
 	const checkTokenExpiry = async () => {
 		const exp = $user?.expires_at; // token expiry time in unix timestamp
 		const now = Math.floor(Date.now() / 1000); // current time in unix timestamp
@@ -593,10 +631,23 @@
 						await goto(`/auth?redirect=${encodedUrl}`);
 					}
 				} else {
-					// Don't redirect if we're already on the auth page
-					// Needed because we pass in tokens from OAuth logins via URL fragments
-					if ($page.url.pathname !== '/auth') {
-						await goto(`/auth?redirect=${encodedUrl}`);
+					// Check if we're in Teams environment and handle authentication
+					try {
+						await microsoftTeams.app.initialize();
+						console.log('Teams SDK initialized successfully');
+
+						// If we're in Teams and no token, try Teams authentication
+						if (!localStorage.token) {
+							await handleTeamsAuthentication();
+						}
+					} catch (error) {
+						console.log('Not in Teams environment or Teams SDK not available:', error);
+
+						// Don't redirect if we're already on the auth page
+						// Needed because we pass in tokens from OAuth logins via URL fragments
+						if ($page.url.pathname !== '/auth') {
+							await goto(`/auth?redirect=${encodedUrl}`);
+						}
 					}
 				}
 			}

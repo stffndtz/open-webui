@@ -15,6 +15,7 @@
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import OnBoarding from '$lib/components/OnBoarding.svelte';
+	import * as microsoftTeams from '@microsoft/teams-js';
 
 	const i18n = getContext('i18n');
 
@@ -88,6 +89,41 @@
 		}
 	};
 
+	const handleTeamsAuthentication = async () => {
+		try {
+			// Initialize Teams SDK
+			await microsoftTeams.app.initialize();
+
+			// Check if we're in Teams environment
+			const context = await microsoftTeams.app.getContext();
+			console.log('Teams context:', context);
+
+			// Start authentication flow
+			const authResult = await microsoftTeams.authentication.authenticate({
+				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
+				width: 600,
+				height: 535
+			});
+
+			console.log('Teams authentication result:', authResult);
+
+			// The result should contain the token
+			if (authResult) {
+				localStorage.token = authResult;
+				const sessionUser = await getSessionUser(authResult).catch((error) => {
+					toast.error(`${error}`);
+					return null;
+				});
+
+				if (sessionUser) {
+					await setSessionUser(sessionUser);
+				}
+			}
+		} catch (error) {
+			console.error('Teams authentication error:', error);
+		}
+	};
+
 	const checkOauthCallback = async () => {
 		if (!$page.url.hash) {
 			return;
@@ -143,6 +179,19 @@
 			goto(redirectPath);
 		}
 		await checkOauthCallback();
+
+		// Check if we're in Teams environment and handle authentication
+		try {
+			await microsoftTeams.app.initialize();
+			console.log('Teams SDK initialized successfully');
+
+			// If we're in Teams and no token, try Teams authentication
+			if (!localStorage.token) {
+				await handleTeamsAuthentication();
+			}
+		} catch (error) {
+			console.log('Not in Teams environment or Teams SDK not available:', error);
+		}
 
 		loaded = true;
 		setLogoImage();
