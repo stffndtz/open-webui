@@ -2,7 +2,7 @@
 	import { io } from 'socket.io-client';
 	import { spring } from 'svelte/motion';
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
-	import microsoftTeams from "@microsoft/teams-js";
+	import microsoftTeams from '@microsoft/teams-js';
 
 	let loadingProgress = spring(0, {
 		stiffness: 0.05
@@ -206,7 +206,9 @@
 	};
 
 	const executeTool = async (data: any, cb: (result: any) => void) => {
-		const toolServer = $settings?.toolServers?.find((server: any) => server.url === data.server?.url);
+		const toolServer = $settings?.toolServers?.find(
+			(server: any) => server.url === data.server?.url
+		);
 		const toolServerData = $toolServers?.find((server: any) => server.url === data.server?.url);
 
 		console.log('executeTool', data, toolServer);
@@ -214,7 +216,9 @@
 		if (toolServer) {
 			console.log(toolServer);
 			const res = await executeToolServer(
-				(toolServer?.auth_type ?? 'bearer') === 'bearer' ? (toolServer?.key as string) : (localStorage.token || ''),
+				(toolServer?.auth_type ?? 'bearer') === 'bearer'
+					? (toolServer?.key as string)
+					: localStorage.token || '',
 				toolServer.url,
 				data?.name,
 				data?.params,
@@ -309,7 +313,7 @@
 				const { session_id, channel, form_data, model } = data;
 
 				try {
-					const directConnections = $settings?.directConnections as any ?? {};
+					const directConnections = ($settings?.directConnections as any) ?? {};
 
 					if (directConnections) {
 						const urlIdx = model?.urlIdx;
@@ -348,7 +352,7 @@
 
 									const processStream = async () => {
 										if (!reader) return;
-										
+
 										while (true) {
 											// Read data chunks from the response stream
 											const { done, value } = await reader.read();
@@ -456,8 +460,8 @@
 		}
 
 		if (now >= exp - TOKEN_EXPIRY_BUFFER) {
-					const res = await userSignOut();
-		user.set(undefined);
+			const res = await userSignOut();
+			user.set(undefined);
 			localStorage.removeItem('token');
 
 			location.href = res?.redirect_url ?? '/auth';
@@ -469,20 +473,20 @@
 		try {
 			// Initialize Teams SDK
 			await microsoftTeams.app.initialize();
-			
+
 			// Check if we're in Teams environment
 			const context = await microsoftTeams.app.getContext();
 			console.log('Teams context:', context);
-			
+
 			// Start authentication flow
 			const authResult = await microsoftTeams.authentication.authenticate({
 				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
 				width: 600,
-				height: 535,
+				height: 535
 			});
-			
+
 			console.log('Teams authentication result:', authResult);
-			
+
 			// The result should contain the token
 			if (authResult) {
 				localStorage.token = authResult;
@@ -490,7 +494,7 @@
 					toast.error(`${error}`);
 					return null;
 				});
-				
+
 				if (sessionUser) {
 					$socket?.emit('user-join', { auth: { token: sessionUser.token } });
 					await user.set(sessionUser);
@@ -640,14 +644,14 @@
 					try {
 						await microsoftTeams.app.initialize();
 						console.log('Teams SDK initialized successfully');
-						
+
 						// If we're in Teams and no token, try Teams authentication
 						if (!localStorage.token) {
 							await handleTeamsAuthentication();
 						}
 					} catch (error) {
 						console.log('Not in Teams environment or Teams SDK not available:', error);
-						
+
 						// Don't redirect if we're already on the auth page
 						// Needed because we pass in tokens from OAuth logins via URL fragments
 						if ($page.url.pathname !== '/auth') {

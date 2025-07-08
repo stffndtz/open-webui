@@ -16,7 +16,7 @@
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import OnBoarding from '$lib/components/OnBoarding.svelte';
-	import microsoftTeams from "@microsoft/teams-js";
+	import microsoftTeams from '@microsoft/teams-js';
 
 	let loaded = false;
 
@@ -117,20 +117,20 @@
 		try {
 			// Initialize Teams SDK
 			await microsoftTeams.app.initialize();
-			
+
 			// Check if we're in Teams environment
 			const context = await microsoftTeams.app.getContext();
 			console.log('Teams context:', context);
-			
+
 			// Start authentication flow
 			const authResult = await microsoftTeams.authentication.authenticate({
 				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
 				width: 600,
-				height: 535,
+				height: 535
 			});
-			
+
 			console.log('Teams authentication result:', authResult);
-			
+
 			// The result should contain the token
 			if (authResult) {
 				localStorage.token = authResult;
@@ -138,7 +138,7 @@
 					toast.error(`${error}`);
 					return null;
 				});
-				
+
 				if (sessionUser) {
 					await setSessionUser(sessionUser);
 				}
@@ -180,12 +180,12 @@
 			goto(redirectPath);
 		}
 		await checkOauthCallback();
-		
+
 		// Check if we're in Teams environment and handle authentication
 		try {
 			await microsoftTeams.app.initialize();
 			console.log('Teams SDK initialized successfully');
-			
+
 			// If we're in Teams and no token, try Teams authentication
 			if (!localStorage.token) {
 				await handleTeamsAuthentication();
@@ -193,7 +193,7 @@
 		} catch (error) {
 			console.log('Not in Teams environment or Teams SDK not available:', error);
 		}
-		
+
 		loaded = true;
 		setLogoImage();
 
