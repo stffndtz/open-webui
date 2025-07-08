@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { toast } from 'svelte-sonner';
 
 	import { onMount, getContext, tick } from 'svelte';
@@ -12,12 +12,11 @@
 	import { WEBUI_NAME, config, user, socket } from '$lib/stores';
 
 	import { generateInitialsImage, canvasPixelTest } from '$lib/utils';
+	import i18n from '$lib/i18n';
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import OnBoarding from '$lib/components/OnBoarding.svelte';
-	// import microsoftTeams from "@microsoft/teams-js";
-
-	const i18n = getContext('i18n');
+	import microsoftTeams from "@microsoft/teams-js";
 
 	let loaded = false;
 
@@ -29,20 +28,20 @@
 
 	let ldapUsername = '';
 
-	const querystringValue = (key) => {
+	const querystringValue = (key: string) => {
 		const querystring = window.location.search;
 		const urlParams = new URLSearchParams(querystring);
 		return urlParams.get(key);
 	};
 
-	const setSessionUser = async (sessionUser) => {
+	const setSessionUser = async (sessionUser: any) => {
 		if (sessionUser) {
 			console.log(sessionUser);
 			toast.success($i18n.t(`You're now logged in.`));
 			if (sessionUser.token) {
 				localStorage.token = sessionUser.token;
 			}
-			$socket.emit('user-join', { auth: { token: sessionUser.token } });
+			$socket?.emit('user-join', { auth: { token: sessionUser.token } });
 			await user.set(sessionUser);
 			await config.set(await getBackendConfig());
 
@@ -113,11 +112,48 @@
 		await setSessionUser(sessionUser);
 	};
 
+	// Microsoft Teams Authentication
+	const handleTeamsAuthentication = async () => {
+		try {
+			// Initialize Teams SDK
+			await microsoftTeams.app.initialize();
+			
+			// Check if we're in Teams environment
+			const context = await microsoftTeams.app.getContext();
+			console.log('Teams context:', context);
+			
+			// Start authentication flow
+			const authResult = await microsoftTeams.authentication.authenticate({
+				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
+				width: 600,
+				height: 535,
+			});
+			
+			console.log('Teams authentication result:', authResult);
+			
+			// The result should contain the token
+			if (authResult) {
+				localStorage.token = authResult;
+				const sessionUser = await getSessionUser(authResult).catch((error) => {
+					toast.error(`${error}`);
+					return null;
+				});
+				
+				if (sessionUser) {
+					await setSessionUser(sessionUser);
+				}
+			}
+		} catch (error) {
+			console.error('Teams authentication failed:', error);
+			toast.error('Teams authentication failed. Please try again.');
+		}
+	};
+
 	let onboarding = false;
 
 	async function setLogoImage() {
 		await tick();
-		const logo = document.getElementById('logo');
+		const logo = document.getElementById('logo') as HTMLImageElement;
 
 		if (logo) {
 			const isDarkMode = document.documentElement.classList.contains('dark');
@@ -144,7 +180,20 @@
 			goto(redirectPath);
 		}
 		await checkOauthCallback();
-		// await microsoftTeams.app.initialize().then(async () => { try { microsoftTeams.authentication.notifySuccess("Success - close now please"); /* await microsoftTeams.app.initialize().then( async () => { microsoftTeams.authentication.notifySuccess(token); }).catch(() => { console.log("no teams") });*/ } catch { console.log('got already token from popup and its already closed'); } }) .catch(() => { console.log('no teams'); });
+		
+		// Check if we're in Teams environment and handle authentication
+		try {
+			await microsoftTeams.app.initialize();
+			console.log('Teams SDK initialized successfully');
+			
+			// If we're in Teams and no token, try Teams authentication
+			if (!localStorage.token) {
+				await handleTeamsAuthentication();
+			}
+		} catch (error) {
+			console.log('Not in Teams environment or Teams SDK not available:', error);
+		}
+		
 		loaded = true;
 		setLogoImage();
 
