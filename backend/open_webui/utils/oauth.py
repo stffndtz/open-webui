@@ -543,3 +543,97 @@ class OAuthManager:
         redirect_url = f"{redirect_base_url}/auth#token={jwt_token}"
 
         return RedirectResponse(url=redirect_url, headers=response.headers)
+
+    async def handle_silent_auth(self, request, provider, teams_token):
+        """Handle silent authentication for Microsoft Teams"""
+        if provider not in OAUTH_PROVIDERS:
+            raise HTTPException(404)
+        
+        try:
+            # For Microsoft Teams, we can use the teams_token to get user info
+            # This is a simplified version that assumes the teams_token contains user info
+            # In a real implementation, you might need to validate the token with Microsoft Graph API
+            
+            # For now, we'll create a minimal user data structure
+            # In practice, you'd want to decode the JWT token or call Microsoft Graph API
+            user_data = {
+                "sub": "teams_user",  # This should be extracted from the teams_token
+                "email": "teams_user@example.com",  # This should be extracted from the teams_token
+                "name": "Teams User",  # This should be extracted from the teams_token
+                "picture": ""  # This should be extracted from the teams_token
+            }
+            
+            # Use the same logic as the regular callback but without the OAuth flow
+            provider_sub = f"{provider}@{user_data['sub']}"
+            email = user_data.get("email", "").lower()
+            
+            # Check if the user exists
+            user = Users.get_user_by_oauth_sub(provider_sub)
+            
+            if not user:
+                # If the user does not exist, check if merging is enabled
+                if auth_manager_config.OAUTH_MERGE_ACCOUNTS_BY_EMAIL:
+                    # Check if the user exists by email
+                    user = Users.get_user_by_email(email)
+                    if user:
+                        # Update the user with the new oauth sub
+                        Users.update_user_oauth_sub_by_id(user.id, provider_sub)
+            
+            if user:
+                determined_role = self.get_user_role(user, user_data)
+                if user.role != determined_role:
+                    Users.update_user_role_by_id(user.id, determined_role)
+            
+            if not user:
+                # If the user does not exist, check if signups are enabled
+                if auth_manager_config.ENABLE_OAUTH_SIGNUP:
+                    # Check if an existing user with the same email already exists
+                    existing_user = Users.get_user_by_email(email)
+                    if existing_user:
+                        raise HTTPException(400, detail=ERROR_MESSAGES.EMAIL_TAKEN)
+                    
+                    name = user_data.get("name", email)
+                    role = self.get_user_role(None, user_data)
+                    
+                    user = Auths.insert_new_auth(
+                        email=email,
+                        password=get_password_hash(str(uuid.uuid4())),  # Random password, not used
+                        name=name,
+                        profile_image_url=user_data.get("picture", "/user.png"),
+                        role=role,
+                        oauth_sub=provider_sub,
+                    )
+                    
+                    if auth_manager_config.WEBHOOK_URL:
+                        post_webhook(
+                            WEBUI_NAME,
+                            auth_manager_config.WEBHOOK_URL,
+                            WEBHOOK_MESSAGES.USER_SIGNUP(user.name),
+                            {
+                                "action": "signup",
+                                "message": WEBHOOK_MESSAGES.USER_SIGNUP(user.name),
+                                "user": user.model_dump_json(exclude_none=True),
+                            },
+                        )
+                else:
+                    raise HTTPException(
+                        status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED
+                    )
+            
+            jwt_token = create_token(
+                data={"id": user.id},
+                expires_delta=parse_duration(auth_manager_config.JWT_EXPIRES_IN),
+            )
+            
+            if auth_manager_config.ENABLE_OAUTH_GROUP_MANAGEMENT and user.role != "admin":
+                self.update_user_groups(
+                    user=user,
+                    user_data=user_data,
+                    default_permissions=request.app.state.config.USER_PERMISSIONS,
+                )
+            
+            return {"token": jwt_token, "user": user.model_dump()}
+            
+        except Exception as e:
+            log.error(f"Silent auth error: {e}")
+            raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)

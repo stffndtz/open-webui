@@ -478,7 +478,43 @@
 			const context = await microsoftTeams.app.getContext();
 			console.log('Teams context:', context);
 
-			// Start authentication flow
+			// Check if user is already authenticated in Teams
+			const userInfo = await microsoftTeams.authentication.getAuthToken();
+			if (userInfo) {
+				console.log('User already authenticated in Teams, attempting silent auth');
+
+				// Try to get user info directly from Teams
+				try {
+					const teamsUser = await microsoftTeams.app.getContext();
+					console.log('Teams user info:', teamsUser);
+
+					// Try to authenticate with the Teams token
+					const authResult = await microsoftTeams.authentication.authenticate({
+						url: `${WEBUI_BASE_URL}/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
+						width: 0, // Hidden window for silent auth
+						height: 0
+					});
+
+					if (authResult) {
+						localStorage.token = authResult;
+						const sessionUser = await getSessionUser(authResult).catch((error) => {
+							console.log('Silent auth failed, falling back to full auth:', error);
+							return null;
+						});
+
+						if (sessionUser) {
+							$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+							await user.set(sessionUser);
+							await config.set(await getBackendConfig());
+							return; // Success, exit early
+						}
+					}
+				} catch (silentError) {
+					console.log('Silent authentication failed, proceeding with full auth:', silentError);
+				}
+			}
+
+			// Full authentication flow with iframe
 			const authResult = await microsoftTeams.authentication.authenticate({
 				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
 				width: 600,
@@ -499,11 +535,16 @@
 					$socket?.emit('user-join', { auth: { token: sessionUser.token } });
 					await user.set(sessionUser);
 					await config.set(await getBackendConfig());
+
+					// Close the authentication dialog
+					microsoftTeams.authentication.notifySuccess(authResult);
 				}
 			}
 		} catch (error) {
 			console.error('Teams authentication failed:', error);
 			toast.error('Teams authentication failed. Please try again.');
+			// Notify Teams that authentication failed
+			microsoftTeams.authentication.notifyFailure('Authentication failed');
 		}
 	};
 
