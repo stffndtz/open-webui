@@ -445,16 +445,144 @@
 
 	const TOKEN_EXPIRY_BUFFER = 60; // seconds
 
-	const handleTeamsAuthentication = async () => {
+	// Check if we're in a Teams environment
+	const checkTeamsEnvironment = async () => {
 		try {
-			// Initialize Teams SDK
+			// Check if Teams SDK is available
+			if (typeof microsoftTeams === 'undefined') {
+				return false;
+			}
+
+			// Try to initialize the SDK
 			await microsoftTeams.app.initialize();
 
-			// Check if we're in Teams environment
+			// Try to get context
+			const context = await microsoftTeams.app.getContext();
+
+			// Check if we're in Teams (not standalone)
+			return (
+				context &&
+				context.app &&
+				context.app.host &&
+				(context.app.host.name === 'teams' || context.app.host.name === 'teamsModern')
+			);
+		} catch (error) {
+			console.log('Not in Teams environment:', error);
+			return false;
+		}
+	};
+
+	// Get Teams user info if available
+	const getTeamsUserInfo = async () => {
+		try {
+			// Try to get auth token
+			const authToken = await microsoftTeams.authentication.getAuthToken();
+			if (authToken) {
+				return { token: authToken };
+			}
+
+			// Try to get user info from context
+			const context = await microsoftTeams.app.getContext();
+			if (context && context.user) {
+				return {
+					id: context.user.id,
+					email: context.user.email,
+					name: context.user.displayName
+				};
+			}
+
+			return null;
+		} catch (error) {
+			console.log('Could not get Teams user info:', error);
+			return null;
+		}
+	};
+
+	// Attempt silent authentication
+	const attemptSilentAuth = async (userInfo) => {
+		try {
+			// For web clients, we might need a different approach
+			const isWebClient =
+				window.location.hostname !== 'localhost' &&
+				!window.location.hostname.includes('teams.microsoft.com');
+
+			if (isWebClient) {
+				// For web clients, try to authenticate with the Teams token
+				const authResult = await microsoftTeams.authentication.authenticate({
+					url: `${WEBUI_BASE_URL}/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo.token || '')}`,
+					width: 0, // Hidden window for silent auth
+					height: 0
+				});
+
+				if (authResult) {
+					localStorage.token = authResult;
+					const sessionUser = await getSessionUser(authResult).catch((error) => {
+						console.log('Silent auth failed, falling back to full auth:', error);
+						return null;
+					});
+
+					if (sessionUser) {
+						$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+						await user.set(sessionUser);
+						await config.set(await getBackendConfig());
+						return true; // Success
+					}
+				}
+			} else {
+				// For desktop clients, try direct authentication
+				if (userInfo.token) {
+					localStorage.token = userInfo.token;
+					const sessionUser = await getSessionUser(userInfo.token).catch((error) => {
+						console.log('Direct auth failed:', error);
+						return null;
+					});
+
+					if (sessionUser) {
+						$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+						await user.set(sessionUser);
+						await config.set(await getBackendConfig());
+						return true; // Success
+					}
+				}
+			}
+
+			return false; // Silent auth failed
+		} catch (error) {
+			console.log('Silent authentication failed, proceeding with full auth:', error);
+			return false;
+		}
+	};
+
+	const handleTeamsAuthentication = async () => {
+		try {
+			// Check if we're in a Teams environment
+			const isTeams = await checkTeamsEnvironment();
+			if (!isTeams) {
+				console.log('Not in Teams environment, skipping Teams authentication');
+				return;
+			}
+
+			// Initialize Teams SDK
+			await microsoftTeams.app.initialize();
+			console.log('Teams SDK initialized successfully');
+
+			// Get Teams context
 			const context = await microsoftTeams.app.getContext();
 			console.log('Teams context:', context);
 
-			// Start authentication flow
+			// Check if user is already authenticated in Teams
+			const userInfo = await getTeamsUserInfo();
+			if (userInfo) {
+				console.log('User already authenticated in Teams, attempting silent auth');
+
+				// Try silent authentication first
+				const silentAuthResult = await attemptSilentAuth(userInfo);
+				if (silentAuthResult) {
+					return; // Success, exit early
+				}
+			}
+
+			// Full authentication flow with iframe
 			const authResult = await microsoftTeams.authentication.authenticate({
 				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
 				width: 600,
@@ -474,10 +602,26 @@
 				if (sessionUser) {
 					$socket?.emit('user-join', { auth: { token: sessionUser.token } });
 					await user.set(sessionUser);
+					await config.set(await getBackendConfig());
+
+					// Close the authentication dialog
+					try {
+						microsoftTeams.authentication.notifySuccess(authResult);
+					} catch (notifyError) {
+						console.log('Could not notify Teams of success:', notifyError);
+					}
 				}
 			}
 		} catch (error) {
-			console.error('Teams authentication error:', error);
+			console.error('Teams authentication failed:', error);
+			toast.error('Teams authentication failed. Please try again.');
+
+			// Notify Teams that authentication failed
+			try {
+				microsoftTeams.authentication.notifyFailure('Authentication failed');
+			} catch (notifyError) {
+				console.log('Could not notify Teams of failure:', notifyError);
+			}
 		}
 	};
 

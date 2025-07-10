@@ -1697,6 +1697,12 @@ async def oauth_callback(provider: str, request: Request, response: Response):
     return await oauth_manager.handle_callback(request, provider, response)
 
 
+@app.get("/oauth/{provider}/silent")
+async def oauth_silent(provider: str, request: Request, teams_token: str):
+    """Silent authentication endpoint for Microsoft Teams"""
+    return await oauth_manager.handle_silent_auth(request, provider, teams_token)
+
+
 @app.get("/manifest.json")
 async def get_manifest_json():
     if app.state.EXTERNAL_PWA_MANIFEST_URL:
