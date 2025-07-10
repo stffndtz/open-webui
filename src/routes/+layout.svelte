@@ -543,57 +543,6 @@
 		}
 	};
 
-	const handleTeamsAuthentication = async () => {
-		try {
-			// Check if we're in a Teams environment
-			const isTeams = await checkTeamsEnvironment();
-			if (!isTeams) {
-				console.log('Not in Teams environment, skipping Teams authentication');
-				return;
-			}
-
-			// Initialize Teams SDK
-			await microsoftTeams.app.initialize();
-			console.log('Teams SDK initialized successfully');
-
-			// Get Teams context
-			const context = await microsoftTeams.app.getContext();
-			console.log('Teams context:', context);
-
-			// Check if user is already authenticated in Teams
-			const userInfo = await getTeamsUserInfo();
-			if (userInfo) {
-				console.log('User already authenticated in Teams, attempting silent auth');
-
-				// Try silent authentication first
-				const silentAuthResult = await attemptSilentAuth(userInfo);
-				if (silentAuthResult) {
-					return; // Success, exit early
-				}
-			}
-
-			// For Teams apps, we need to use a different approach
-			// Instead of using Teams authentication API, we'll redirect to our OAuth flow
-			// This avoids the context restriction issue
-			const authUrl = `${WEBUI_BASE_URL}/oauth/microsoft/login?teams_context=true`;
-
-			// Use Teams navigation to open the auth URL
-			try {
-				await microsoftTeams.navigateToTab({
-					tabName: 'auth',
-					entityId: 'open-webui-auth'
-				});
-			} catch (navError) {
-				console.log('Could not navigate to tab, using direct redirect:', navError);
-				// Fallback to direct navigation
-				window.location.href = authUrl;
-			}
-		} catch (error) {
-			console.error('Teams authentication failed:', error);
-			toast.error('Teams authentication failed. Please try again.');
-		}
-	};
-
 	const checkTokenExpiry = async () => {
 		const exp = $user?.expires_at; // token expiry time in unix timestamp
 		const now = Math.floor(Date.now() / 1000); // current time in unix timestamp
