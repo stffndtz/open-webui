@@ -119,13 +119,7 @@
 	// Get Teams user info if available
 	const getTeamsUserInfo = async () => {
 		try {
-			// Try to get auth token
-			const authToken = await microsoftTeams.authentication.getAuthToken();
-			if (authToken) {
-				return { token: authToken };
-			}
-
-			// Try to get user info from context
+			// Try to get user info from context first (this is always available)
 			const context = await microsoftTeams.app.getContext();
 			if (context && context.user) {
 				return {
@@ -142,46 +136,38 @@
 		}
 	};
 
-	// Attempt silent authentication
+	// Attempt silent authentication using Teams context
 	const attemptSilentAuth = async (userInfo) => {
 		try {
-			// For web clients, we might need a different approach
-			const isWebClient =
-				window.location.hostname !== 'localhost' &&
-				!window.location.hostname.includes('teams.microsoft.com');
-
-			if (isWebClient) {
-				// For web clients, try to authenticate with the Teams token
-				const authResult = await microsoftTeams.authentication.authenticate({
-					url: `${WEBUI_BASE_URL}/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo.token || '')}`,
-					width: 0, // Hidden window for silent auth
-					height: 0
+			// For Teams apps, we can use the user context directly
+			// This avoids the authentication context issue
+			if (userInfo && userInfo.id) {
+				// Try to authenticate using the Teams user ID
+				const response = await fetch(`${WEBUI_BASE_URL}/oauth/microsoft/silent`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						teams_user_id: userInfo.id,
+						teams_user_email: userInfo.email,
+						teams_user_name: userInfo.name
+					})
 				});
 
-				if (authResult) {
-					localStorage.token = authResult;
-					const sessionUser = await getSessionUser(authResult).catch((error) => {
-						console.log('Silent auth failed, falling back to full auth:', error);
-						return null;
-					});
+				if (response.ok) {
+					const authData = await response.json();
+					if (authData.token) {
+						localStorage.token = authData.token;
+						const sessionUser = await getSessionUser(authData.token).catch((error) => {
+							console.log('Silent auth failed, falling back to full auth:', error);
+							return null;
+						});
 
-					if (sessionUser) {
-						await setSessionUser(sessionUser);
-						return true; // Success
-					}
-				}
-			} else {
-				// For desktop clients, try direct authentication
-				if (userInfo.token) {
-					localStorage.token = userInfo.token;
-					const sessionUser = await getSessionUser(userInfo.token).catch((error) => {
-						console.log('Direct auth failed:', error);
-						return null;
-					});
-
-					if (sessionUser) {
-						await setSessionUser(sessionUser);
-						return true; // Success
+						if (sessionUser) {
+							await setSessionUser(sessionUser);
+							return true; // Success
+						}
 					}
 				}
 			}
@@ -222,44 +208,25 @@
 				}
 			}
 
-			// Full authentication flow with iframe
-			const authResult = await microsoftTeams.authentication.authenticate({
-				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
-				width: 600,
-				height: 535
-			});
+			// For Teams apps, we need to use a different approach
+			// Instead of using Teams authentication API, we'll redirect to our OAuth flow
+			// This avoids the context restriction issue
+			const authUrl = `${WEBUI_BASE_URL}/oauth/microsoft/login?teams_context=true`;
 
-			console.log('Teams authentication result:', authResult);
-
-			// The result should contain the token
-			if (authResult) {
-				localStorage.token = authResult;
-				const sessionUser = await getSessionUser(authResult).catch((error) => {
-					toast.error(`${error}`);
-					return null;
+			// Use Teams navigation to open the auth URL
+			try {
+				await microsoftTeams.navigateToTab({
+					tabName: 'auth',
+					entityId: 'open-webui-auth'
 				});
-
-				if (sessionUser) {
-					await setSessionUser(sessionUser);
-
-					// Close the authentication dialog
-					try {
-						microsoftTeams.authentication.notifySuccess(authResult);
-					} catch (notifyError) {
-						console.log('Could not notify Teams of success:', notifyError);
-					}
-				}
+			} catch (navError) {
+				console.log('Could not navigate to tab, using direct redirect:', navError);
+				// Fallback to direct navigation
+				window.location.href = authUrl;
 			}
 		} catch (error) {
 			console.error('Teams authentication failed:', error);
 			toast.error('Teams authentication failed. Please try again.');
-
-			// Notify Teams that authentication failed
-			try {
-				microsoftTeams.authentication.notifyFailure('Authentication failed');
-			} catch (notifyError) {
-				console.log('Could not notify Teams of failure:', notifyError);
-			}
 		}
 	};
 

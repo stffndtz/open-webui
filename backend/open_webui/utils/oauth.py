@@ -544,23 +544,27 @@ class OAuthManager:
 
         return RedirectResponse(url=redirect_url, headers=response.headers)
 
-    async def handle_silent_auth(self, request, provider, teams_token):
+    async def handle_silent_auth(self, request, provider):
         """Handle silent authentication for Microsoft Teams"""
         if provider not in OAUTH_PROVIDERS:
             raise HTTPException(404)
         
         try:
-            # For Microsoft Teams, we can use the teams_token to get user info
-            # This is a simplified version that assumes the teams_token contains user info
-            # In a real implementation, you might need to validate the token with Microsoft Graph API
+            # Get Teams user info from request body
+            body = await request.json()
+            teams_user_id = body.get("teams_user_id")
+            teams_user_email = body.get("teams_user_email")
+            teams_user_name = body.get("teams_user_name")
             
-            # For now, we'll create a minimal user data structure
-            # In practice, you'd want to decode the JWT token or call Microsoft Graph API
+            if not teams_user_id:
+                raise HTTPException(400, detail="Teams user ID is required")
+            
+            # Create user data from Teams context
             user_data = {
-                "sub": "teams_user",  # This should be extracted from the teams_token
-                "email": "teams_user@example.com",  # This should be extracted from the teams_token
-                "name": "Teams User",  # This should be extracted from the teams_token
-                "picture": ""  # This should be extracted from the teams_token
+                "sub": teams_user_id,
+                "email": teams_user_email or f"{teams_user_id}@teams.microsoft.com",
+                "name": teams_user_name or f"Teams User {teams_user_id}",
+                "picture": ""
             }
             
             # Use the same logic as the regular callback but without the OAuth flow
