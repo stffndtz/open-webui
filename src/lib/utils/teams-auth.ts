@@ -70,7 +70,7 @@ class TeamsAuthManager {
 	async attemptSilentAuth(): Promise<TeamsAuthResult> {
 		try {
 			await this.initialize();
-			
+
 			// Try to get the user's access token silently
 			const authTokenRequest: microsoftTeams.authentication.AuthTokenRequest = {
 				successCallback: (result: string) => {
@@ -110,7 +110,7 @@ class TeamsAuthManager {
 	private async _performInteractiveAuth(): Promise<TeamsAuthResult> {
 		try {
 			await this.initialize();
-			
+
 			// Start authentication flow
 			const authResult = await microsoftTeams.authentication.authenticate({
 				url: `${WEBUI_BASE_URL}/oauth/microsoft/login?teams=true`,
@@ -322,4 +322,4 @@ class TeamsAuthManager {
 }
 
 // Export singleton instance
-export const teamsAuth = new TeamsAuthManager(); 
+export const teamsAuth = new TeamsAuthManager();

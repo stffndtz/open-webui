@@ -129,7 +129,7 @@
 
 			if (authResult.success && authResult.token) {
 				localStorage.token = authResult.token;
-				
+
 				// Get session user with the token
 				const sessionUser = await getSessionUser(authResult.token).catch((error) => {
 					toast.error(`${error}`);

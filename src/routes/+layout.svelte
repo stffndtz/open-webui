@@ -216,28 +216,28 @@
 
 		if (toolServer) {
 			console.log(toolServer);
-					if (!toolServerData) {
-			if (cb) {
-				cb(
-					JSON.parse(
-						JSON.stringify({
-							error: 'Tool Server Data Not Found'
-						})
-					)
-				);
+			if (!toolServerData) {
+				if (cb) {
+					cb(
+						JSON.parse(
+							JSON.stringify({
+								error: 'Tool Server Data Not Found'
+							})
+						)
+					);
+				}
+				return;
 			}
-			return;
-		}
 
-		const res = await executeToolServer(
-			(toolServer?.auth_type ?? 'bearer') === 'bearer'
-				? (toolServer?.key as string)
-				: localStorage.token || '',
-			toolServer.url as string,
-			data?.name,
-			data?.params,
-			toolServerData
-		);
+			const res = await executeToolServer(
+				(toolServer?.auth_type ?? 'bearer') === 'bearer'
+					? (toolServer?.key as string)
+					: localStorage.token || '',
+				toolServer.url as string,
+				data?.name,
+				data?.params,
+				toolServerData
+			);
 
 			console.log('executeToolServer', res);
 			if (cb) {
@@ -499,7 +499,7 @@
 
 			if (authResult.success && authResult.token) {
 				localStorage.token = authResult.token;
-				
+
 				// Get session user with the token
 				const sessionUser = await getSessionUser(authResult.token).catch((error) => {
 					toast.error(`${error}`);
