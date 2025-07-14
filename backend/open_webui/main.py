@@ -1697,6 +1697,101 @@ async def oauth_callback(provider: str, request: Request, response: Response):
     return await oauth_manager.handle_callback(request, provider, response)
 
 
+@app.get("/oauth/{provider}/teams-callback")
+async def oauth_teams_callback(provider: str, request: Request, response: Response):
+    """
+    Teams-specific OAuth callback that handles iframe communication.
+    This endpoint is designed to work within Teams iframes and communicate
+    the authentication result back to the parent tab.
+    """
+    # Get the original callback result
+    callback_result = await oauth_manager.handle_callback(request, provider, response)
+    
+    # Extract the token from the redirect URL
+    if hasattr(callback_result, 'url'):
+        # Parse the token from the redirect URL
+        token = None
+        if '#token=' in callback_result.url:
+            token = callback_result.url.split('#token=')[1]
+        
+        if token:
+            # Return an HTML page that communicates the token back to the parent
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Authentication Complete</title>
+                <meta charset="utf-8">
+                <style>
+                    body {{
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                    }}
+                    .container {{
+                        text-align: center;
+                        padding: 2rem;
+                        background: rgba(255, 255, 255, 0.1);
+                        border-radius: 12px;
+                        backdrop-filter: blur(10px);
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                    }}
+                    .spinner {{
+                        border: 3px solid rgba(255, 255, 255, 0.3);
+                        border-top: 3px solid white;
+                        border-radius: 50%;
+                        width: 40px;
+                        height: 40px;
+                        animation: spin 1s linear infinite;
+                        margin: 0 auto 1rem;
+                    }}
+                    @keyframes spin {{
+                        0% {{ transform: rotate(0deg); }}
+                        100% {{ transform: rotate(360deg); }}
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="spinner"></div>
+                    <h2>Authentication Complete</h2>
+                    <p>You will be redirected automatically...</p>
+                </div>
+                <script>
+                    // Communicate the token back to the parent window
+                    if (window.parent && window.parent !== window) {{
+                        try {{
+                            window.parent.postMessage({{
+                                type: 'teams-auth-success',
+                                token: '{token}'
+                            }}, '*');
+                            
+                            // Close the iframe after a short delay
+                            setTimeout(() => {{
+                                window.close();
+                            }}, 1000);
+                        }} catch (error) {{
+                            console.error('Failed to communicate with parent:', error);
+                        }}
+                    }} else {{
+                        // Fallback: redirect to the main app with token
+                        window.location.href = '{callback_result.url}';
+                    }}
+                </script>
+            </body>
+            </html>
+            """
+            return Response(content=html_content, media_type="text/html")
+    
+    # Fallback to the original callback
+    return callback_result
+
+
 @app.get("/manifest.json")
 async def get_manifest_json():
     if app.state.EXTERNAL_PWA_MANIFEST_URL:

@@ -34,6 +34,7 @@
 
 	import { executeToolServer, getBackendConfig } from '$lib/apis';
 	import { getSessionUser, userSignOut } from '$lib/apis/auths';
+	import { teamsAuth } from '$lib/utils/teams-auth';
 
 	import '../tailwind.css';
 	import '../app.css';
@@ -215,15 +216,28 @@
 
 		if (toolServer) {
 			console.log(toolServer);
-			const res = await executeToolServer(
-				(toolServer?.auth_type ?? 'bearer') === 'bearer'
-					? (toolServer?.key as string)
-					: localStorage.token || '',
-				toolServer.url,
-				data?.name,
-				data?.params,
-				toolServerData
-			);
+					if (!toolServerData) {
+			if (cb) {
+				cb(
+					JSON.parse(
+						JSON.stringify({
+							error: 'Tool Server Data Not Found'
+						})
+					)
+				);
+			}
+			return;
+		}
+
+		const res = await executeToolServer(
+			(toolServer?.auth_type ?? 'bearer') === 'bearer'
+				? (toolServer?.key as string)
+				: localStorage.token || '',
+			toolServer.url as string,
+			data?.name,
+			data?.params,
+			toolServerData
+		);
 
 			console.log('executeToolServer', res);
 			if (cb) {
@@ -471,26 +485,23 @@
 	// Microsoft Teams Authentication
 	const handleTeamsAuthentication = async () => {
 		try {
-			// Initialize Teams SDK
-			await microsoftTeams.app.initialize();
-
 			// Check if we're in Teams environment
-			const context = await microsoftTeams.app.getContext();
-			console.log('Teams context:', context);
+			const isInTeams = await teamsAuth.isInTeams();
+			if (!isInTeams) {
+				console.log('Not in Teams environment');
+				return;
+			}
 
-			// Start authentication flow
-			const authResult = await microsoftTeams.authentication.authenticate({
-				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
-				width: 600,
-				height: 535
+			// Attempt authentication with iframe fallback
+			const authResult = await teamsAuth.authenticateWithIframeFallback({
+				enableSilentAuth: true
 			});
 
-			console.log('Teams authentication result:', authResult);
-
-			// The result should contain the token
-			if (authResult) {
-				localStorage.token = authResult;
-				const sessionUser = await getSessionUser(authResult).catch((error) => {
+			if (authResult.success && authResult.token) {
+				localStorage.token = authResult.token;
+				
+				// Get session user with the token
+				const sessionUser = await getSessionUser(authResult.token).catch((error) => {
 					toast.error(`${error}`);
 					return null;
 				});
@@ -500,6 +511,9 @@
 					await user.set(sessionUser);
 					await config.set(await getBackendConfig());
 				}
+			} else {
+				console.error('Teams authentication failed:', authResult.error);
+				toast.error(authResult.error || 'Teams authentication failed. Please try again.');
 			}
 		} catch (error) {
 			console.error('Teams authentication failed:', error);
@@ -642,15 +656,19 @@
 				} else {
 					// Check if we're in Teams environment and handle authentication
 					try {
-						await microsoftTeams.app.initialize();
-						console.log('Teams SDK initialized successfully');
-
-						// If we're in Teams and no token, try Teams authentication
-						if (!localStorage.token) {
+						const isInTeams = await teamsAuth.isInTeams();
+						if (isInTeams && !localStorage.token) {
+							console.log('Teams environment detected, attempting authentication');
 							await handleTeamsAuthentication();
+						} else if (!localStorage.token) {
+							// Don't redirect if we're already on the auth page
+							// Needed because we pass in tokens from OAuth logins via URL fragments
+							if ($page.url.pathname !== '/auth') {
+								await goto(`/auth?redirect=${encodedUrl}`);
+							}
 						}
 					} catch (error) {
-						console.log('Not in Teams environment or Teams SDK not available:', error);
+						console.log('Teams authentication check failed:', error);
 
 						// Don't redirect if we're already on the auth page
 						// Needed because we pass in tokens from OAuth logins via URL fragments

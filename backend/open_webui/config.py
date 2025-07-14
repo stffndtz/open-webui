@@ -377,6 +377,24 @@ MICROSOFT_REDIRECT_URI = PersistentConfig(
     os.environ.get("MICROSOFT_REDIRECT_URI", ""),
 )
 
+MICROSOFT_TEAMS_REDIRECT_URI = PersistentConfig(
+    "MICROSOFT_TEAMS_REDIRECT_URI",
+    "oauth.microsoft.teams_redirect_uri",
+    os.environ.get("MICROSOFT_TEAMS_REDIRECT_URI", ""),
+)
+
+MICROSOFT_TEAMS_CLIENT_ID = PersistentConfig(
+    "MICROSOFT_TEAMS_CLIENT_ID",
+    "oauth.microsoft.teams_client_id",
+    os.environ.get("MICROSOFT_TEAMS_CLIENT_ID", ""),
+)
+
+MICROSOFT_TEAMS_CLIENT_SECRET = PersistentConfig(
+    "MICROSOFT_TEAMS_CLIENT_SECRET",
+    "oauth.microsoft.teams_client_secret",
+    os.environ.get("MICROSOFT_TEAMS_CLIENT_SECRET", ""),
+)
+
 GITHUB_CLIENT_ID = PersistentConfig(
     "GITHUB_CLIENT_ID",
     "oauth.github.client_id",
@@ -571,6 +589,31 @@ def load_oauth_providers():
             "redirect_uri": MICROSOFT_REDIRECT_URI.value,
             "picture_url": MICROSOFT_CLIENT_PICTURE_URL.value,
             "register": microsoft_oauth_register,
+        }
+
+    # Teams-specific Microsoft OAuth provider
+    if (
+        MICROSOFT_TEAMS_CLIENT_ID.value
+        and MICROSOFT_TEAMS_CLIENT_SECRET.value
+        and MICROSOFT_CLIENT_TENANT_ID.value
+    ):
+
+        def microsoft_teams_oauth_register(client):
+            client.register(
+                name="microsoft-teams",
+                client_id=MICROSOFT_TEAMS_CLIENT_ID.value,
+                client_secret=MICROSOFT_TEAMS_CLIENT_SECRET.value,
+                server_metadata_url=f"{MICROSOFT_CLIENT_LOGIN_BASE_URL.value}/{MICROSOFT_CLIENT_TENANT_ID.value}/v2.0/.well-known/openid-configuration?appid={MICROSOFT_TEAMS_CLIENT_ID.value}",
+                client_kwargs={
+                    "scope": MICROSOFT_OAUTH_SCOPE.value,
+                },
+                redirect_uri=MICROSOFT_TEAMS_REDIRECT_URI.value,
+            )
+
+        OAUTH_PROVIDERS["microsoft-teams"] = {
+            "redirect_uri": MICROSOFT_TEAMS_REDIRECT_URI.value,
+            "picture_url": MICROSOFT_CLIENT_PICTURE_URL.value,
+            "register": microsoft_teams_oauth_register,
         }
 
     if GITHUB_CLIENT_ID.value and GITHUB_CLIENT_SECRET.value:
@@ -1439,7 +1482,7 @@ FOLLOW_UP_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
 DEFAULT_FOLLOW_UP_GENERATION_PROMPT_TEMPLATE = """### Task:
 Suggest 3-5 relevant follow-up questions or prompts that the user might naturally ask next in this conversation as a **user**, based on the chat history, to help continue or deepen the discussion.
 ### Guidelines:
-- Write all follow-up questions from the user’s point of view, directed to the assistant.
+- Write all follow-up questions from the user's point of view, directed to the assistant.
 - Make questions concise, clear, and directly related to the discussed topic(s).
 - Only suggest follow-ups that make sense given the chat content and do not repeat what was already covered.
 - If the conversation is very short or not specific, suggest more general (but relevant) follow-ups the user might ask.
