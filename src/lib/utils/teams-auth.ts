@@ -24,22 +24,37 @@ class TeamsAuthManager {
 		}
 
 		try {
+			// Initialize Teams SDK
 			await microsoftTeams.app.initialize();
+			
 			this.isInitialized = true;
 			console.log('Teams SDK initialized successfully');
 			return true;
-		} catch {
-			console.log('Teams SDK initialization failed');
+		} catch (error) {
+			console.error('Teams SDK initialization failed:', error);
 			return false;
 		}
 	}
 
 	async isInTeams(): Promise<boolean> {
 		try {
+			// Check if we're in a browser environment that supports Teams
+			if (typeof window === 'undefined' || !window.parent || window.parent === window) {
+				console.log('Not in a Teams iframe environment');
+				return false;
+			}
+
 			await this.initialize();
 			const context = await microsoftTeams.app.getContext();
+			console.log('Teams context check:', {
+				host: context.app.host.name,
+				sessionId: context.app.sessionId,
+				theme: context.app.theme,
+				locale: context.app.locale
+			});
 			return context.app.host.name === 'Teams';
-		} catch {
+		} catch (error) {
+			console.error('Failed to check Teams environment:', error);
 			return false;
 		}
 	}
@@ -58,7 +73,18 @@ class TeamsAuthManager {
 		try {
 			await this.initialize();
 
+			// Check if we're actually in Teams
+			const isInTeams = await this.isInTeams();
+			if (!isInTeams) {
+				console.log('Not in Teams environment, skipping getAuthToken');
+				return {
+					success: false,
+					error: 'Not in Teams environment'
+				};
+			}
+
 			console.log('Getting auth token from Microsoft Teams...');
+			console.log('Teams context:', await this.getContext());
 
 			const token = await microsoftTeams.authentication.getAuthToken();
 			console.log('Auth token received successfully');
@@ -87,6 +113,11 @@ class TeamsAuthManager {
 			}
 		} catch (error) {
 			console.error('getAuthToken error:', error);
+			console.error('Error details:', {
+				message: error instanceof Error ? error.message : 'Unknown error',
+				stack: error instanceof Error ? error.stack : undefined,
+				name: error instanceof Error ? error.name : 'Unknown'
+			});
 			return {
 				success: false,
 				error: error instanceof Error ? error.message : 'Authentication failed'
