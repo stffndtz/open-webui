@@ -483,43 +483,23 @@
 	};
 
 	// Microsoft Teams Authentication
-	const handleTeamsAuthentication = async () => {
+	async function handleTeamsAuthentication(): Promise<void> {
 		try {
-			// Check if we're in Teams environment
-			const isInTeams = await teamsAuth.isInTeams();
-			if (!isInTeams) {
-				console.log('Not in Teams environment');
-				return;
-			}
-
-			// Attempt authentication with iframe fallback
-			const authResult = await teamsAuth.authenticateWithIframeFallback({
-				enableSilentAuth: true
-			});
-
+			console.log('Handling Teams authentication...');
+			const authResult = await teamsAuth.authenticateWithSSO();
+			
 			if (authResult.success && authResult.token) {
-				localStorage.token = authResult.token;
-
-				// Get session user with the token
-				const sessionUser = await getSessionUser(authResult.token).catch((error) => {
-					toast.error(`${error}`);
-					return null;
-				});
-
-				if (sessionUser) {
-					$socket?.emit('user-join', { auth: { token: sessionUser.token } });
-					await user.set(sessionUser);
-					await config.set(await getBackendConfig());
-				}
+				console.log('Teams authentication successful');
+				const sessionUser = await getSessionUser(authResult.token);
+				user.set(sessionUser);
+				// auth.set(true); // This line was removed as per the new_code
 			} else {
 				console.error('Teams authentication failed:', authResult.error);
-				toast.error(authResult.error || 'Teams authentication failed. Please try again.');
 			}
 		} catch (error) {
-			console.error('Teams authentication failed:', error);
-			toast.error('Teams authentication failed. Please try again.');
+			console.error('Teams authentication error:', error);
 		}
-	};
+	}
 
 	onMount(async () => {
 		if (typeof window !== 'undefined' && window.applyTheme) {
