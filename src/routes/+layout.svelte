@@ -500,7 +500,6 @@
 				console.log('Teams authentication successful');
 				const sessionUser = await getSessionUser(authResult.token);
 				user.set(sessionUser);
-				auth.set(true);
 			} else {
 				console.error('Teams authentication failed:', authResult.error);
 			}
