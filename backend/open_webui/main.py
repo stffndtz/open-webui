@@ -1683,6 +1683,30 @@ if len(OAUTH_PROVIDERS) > 0:
 
 @app.get("/oauth/{provider}/login")
 async def oauth_login(provider: str, request: Request):
+    """
+    Initiate OAuth login flow for the specified provider.
+    """
+    # Add debugging for Teams authentication
+    if provider == "microsoft" and request.query_params.get("teams") == "true":
+        print(f"Teams OAuth login requested")
+        print(f"Available OAuth providers: {list(oauth_manager.providers.keys())}")
+        print(
+            f"Teams Client ID: {oauth_manager.providers.get('microsoft-teams', {}).get('client_id', 'NOT_FOUND')}"
+        )
+        print(
+            f"Teams Redirect URI: {oauth_manager.providers.get('microsoft-teams', {}).get('redirect_uri', 'NOT_FOUND')}"
+        )
+        print(
+            f"Regular Microsoft Client ID: {oauth_manager.providers.get('microsoft', {}).get('client_id', 'NOT_FOUND')}"
+        )
+
+        # Use Teams-specific provider for Teams authentication
+        if "microsoft-teams" in oauth_manager.providers:
+            provider = "microsoft-teams"
+            print(f"Switched to Teams provider: {provider}")
+        else:
+            print("Teams provider not found, using regular Microsoft provider")
+
     return await oauth_manager.handle_login(request, provider)
 
 
@@ -1704,16 +1728,21 @@ async def oauth_teams_callback(provider: str, request: Request, response: Respon
     This endpoint is designed to work within Teams iframes and communicate
     the authentication result back to the parent tab.
     """
+    # Use Teams-specific provider for Teams callbacks
+    if provider == "microsoft" and "microsoft-teams" in oauth_manager.providers:
+        provider = "microsoft-teams"
+        print(f"Teams callback using provider: {provider}")
+
     # Get the original callback result
     callback_result = await oauth_manager.handle_callback(request, provider, response)
-    
+
     # Extract the token from the redirect URL
-    if hasattr(callback_result, 'url'):
+    if hasattr(callback_result, "url"):
         # Parse the token from the redirect URL
         token = None
-        if '#token=' in callback_result.url:
-            token = callback_result.url.split('#token=')[1]
-        
+        if "#token=" in callback_result.url:
+            token = callback_result.url.split("#token=")[1]
+
         if token:
             # Return an HTML page that communicates the token back to the parent
             html_content = f"""
@@ -1787,7 +1816,7 @@ async def oauth_teams_callback(provider: str, request: Request, response: Respon
             </html>
             """
             return Response(content=html_content, media_type="text/html")
-    
+
     # Fallback to the original callback
     return callback_result
 

@@ -111,6 +111,9 @@ class TeamsAuthManager {
 		try {
 			await this.initialize();
 
+			console.log('Starting Teams interactive authentication...');
+			console.log('Authentication URL:', `${WEBUI_BASE_URL}/oauth/microsoft/login?teams=true`);
+
 			// Start authentication flow
 			const authResult = await microsoftTeams.authentication.authenticate({
 				url: `${WEBUI_BASE_URL}/oauth/microsoft/login?teams=true`,
@@ -144,6 +147,11 @@ class TeamsAuthManager {
 			}
 		} catch (error) {
 			console.error('Interactive auth error:', error);
+			console.error('Error details:', {
+				message: error instanceof Error ? error.message : 'Unknown error',
+				stack: error instanceof Error ? error.stack : undefined,
+				name: error instanceof Error ? error.name : 'Unknown'
+			});
 			return {
 				success: false,
 				error: error instanceof Error ? error.message : 'Authentication failed'
