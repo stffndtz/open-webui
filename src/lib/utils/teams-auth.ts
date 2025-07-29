@@ -26,7 +26,7 @@ class TeamsAuthManager {
 		try {
 			// Initialize Teams SDK
 			await microsoftTeams.app.initialize();
-			
+
 			this.isInitialized = true;
 			console.log('Teams SDK initialized successfully');
 			return true;
@@ -85,10 +85,11 @@ class TeamsAuthManager {
 
 			// Follow the exact pattern from Microsoft documentation
 			return new Promise((resolve, reject) => {
-				microsoftTeams.authentication.getAuthToken()
+				microsoftTeams.authentication
+					.getAuthToken()
 					.then((token) => {
 						console.log('Auth token received successfully');
-						
+
 						if (token) {
 							// Try to get user session with the token
 							getSessionUser(token)
@@ -148,7 +149,8 @@ class TeamsAuthManager {
 		try {
 			// Follow the exact pattern from Microsoft documentation
 			return new Promise((resolve, reject) => {
-				microsoftTeams.app.initialize()
+				microsoftTeams.app
+					.initialize()
 					.then(() => {
 						console.log('Teams SDK initialized, getting auth token...');
 						return this.getClientSideToken();
@@ -183,8 +185,9 @@ class TeamsAuthManager {
 	private async getClientSideToken(): Promise<string> {
 		return new Promise((resolve, reject) => {
 			console.log('Getting auth token from Microsoft Teams...');
-			
-			microsoftTeams.authentication.getAuthToken()
+
+			microsoftTeams.authentication
+				.getAuthToken()
 				.then((token) => {
 					console.log('Auth token received successfully');
 					resolve(token);
