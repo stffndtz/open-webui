@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - main-NORD
+      - main-NORD-2
       - dev
     tags:
       - v*

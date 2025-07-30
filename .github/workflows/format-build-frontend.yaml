@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - main-NORD
+      - main-NORD-2
       - dev
     paths-ignore:
       - 'backend/**'

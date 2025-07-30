@@ -5,6 +5,7 @@ on:
     branches:
       - main # or whatever branch you want to use
       - main-NORD
+      - main-NORD-2
 
 jobs:
   release:
