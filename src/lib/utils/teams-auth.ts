@@ -24,22 +24,48 @@ class TeamsAuthManager {
 		}
 
 		try {
+			// Initialize Teams SDK
 			await microsoftTeams.app.initialize();
+
 			this.isInitialized = true;
 			console.log('Teams SDK initialized successfully');
 			return true;
-		} catch {
-			console.log('Teams SDK initialization failed');
+		} catch (error) {
+			console.error('Teams SDK initialization failed:', error);
 			return false;
 		}
 	}
 
 	async isInTeams(): Promise<boolean> {
 		try {
+			// Check if we're in a browser environment that supports Teams
+			if (typeof window === 'undefined' || !window.parent || window.parent === window) {
+				console.log('Not in a Teams iframe environment');
+				return false;
+			}
+
 			await this.initialize();
 			const context = await microsoftTeams.app.getContext();
-			return context.app.host.name === 'Teams';
-		} catch {
+			console.log('Teams context check:', {
+				host: context.app.host.name,
+				sessionId: context.app.sessionId,
+				theme: context.app.theme,
+				locale: context.app.locale,
+				user: context.user ? 'User available' : 'No user',
+				page: context.page
+			});
+			
+			// Check if we're in Teams and have proper configuration
+			const isTeams = context.app.host.name === 'Teams';
+			console.log('Is in Teams:', isTeams);
+			
+			if (isTeams && !context.user) {
+				console.warn('In Teams but no user context available - this might indicate a configuration issue');
+			}
+			
+			return isTeams;
+		} catch (error) {
+			console.error('Failed to check Teams environment:', error);
 			return false;
 		}
 	}
@@ -56,37 +82,64 @@ class TeamsAuthManager {
 
 	async getAuthToken(): Promise<TeamsAuthResult> {
 		try {
-			await this.initialize();
+			// Check if we're actually in Teams
+			const isInTeams = await this.isInTeams();
+			if (!isInTeams) {
+				console.log('Not in Teams environment, skipping getAuthToken');
+				return {
+					success: false,
+					error: 'Not in Teams environment'
+				};
+			}
 
 			console.log('Getting auth token from Microsoft Teams...');
 
-			const token = await microsoftTeams.authentication.getAuthToken();
-			console.log('Auth token received successfully');
+			// Follow the exact pattern from Microsoft documentation
+			return new Promise((resolve, reject) => {
+				microsoftTeams.authentication
+					.getAuthToken()
+					.then((token) => {
+						console.log('Auth token received successfully');
 
-			if (token) {
-				// Try to get user session with the token
-				try {
-					const sessionUser = await getSessionUser(token);
-					return {
-						success: true,
-						token: token,
-						user: sessionUser
-					};
-				} catch (error) {
-					console.error('Failed to get session user:', error);
-					return {
-						success: false,
-						error: 'Failed to validate authentication token'
-					};
-				}
-			} else {
-				return {
-					success: false,
-					error: 'No token received from Teams'
-				};
-			}
+						if (token) {
+							// Try to get user session with the token
+							getSessionUser(token)
+								.then((sessionUser) => {
+									resolve({
+										success: true,
+										token: token,
+										user: sessionUser
+									});
+								})
+								.catch((error) => {
+									console.error('Failed to get session user:', error);
+									resolve({
+										success: false,
+										error: 'Failed to validate authentication token'
+									});
+								});
+						} else {
+							resolve({
+								success: false,
+								error: 'No token received from Teams'
+							});
+						}
+					})
+					.catch((error) => {
+						console.error('getAuthToken error:', error);
+						console.error('Error details:', {
+							message: error instanceof Error ? error.message : 'Unknown error',
+							stack: error instanceof Error ? error.stack : undefined,
+							name: error instanceof Error ? error.name : 'Unknown'
+						});
+						resolve({
+							success: false,
+							error: error instanceof Error ? error.message : 'Authentication failed'
+						});
+					});
+			});
 		} catch (error) {
-			console.error('getAuthToken error:', error);
+			console.error('getAuthToken outer error:', error);
 			return {
 				success: false,
 				error: error instanceof Error ? error.message : 'Authentication failed'
@@ -105,18 +158,104 @@ class TeamsAuthManager {
 
 	private async _authenticateWithSSO(): Promise<TeamsAuthResult> {
 		try {
-			await this.initialize();
-
-			// Use the proper SSO pattern as recommended by Microsoft
-			return await this.getAuthToken();
+			console.log('Starting SSO authentication flow...');
+			
+			// Follow the exact pattern from Microsoft documentation
+			return new Promise((resolve, reject) => {
+				console.log('Initializing Teams SDK...');
+				microsoftTeams.app
+					.initialize()
+					.then(() => {
+						console.log('Teams SDK initialized, getting context...');
+						return microsoftTeams.app.getContext();
+					})
+					.then((context) => {
+						console.log('Teams context received:', {
+							app: context.app,
+							user: context.user ? 'User available' : 'No user',
+							page: context.page
+						});
+						console.log('Getting auth token...');
+						return this.getClientSideToken();
+					})
+					.then((clientSideToken) => {
+						console.log('Client-side token received, validating...');
+						console.log('Token received:', clientSideToken ? 'Yes' : 'No');
+						return this.validateToken(clientSideToken);
+					})
+					.then((result) => {
+						console.log('Token validation complete');
+						console.log('Result:', result);
+						resolve(result);
+					})
+					.catch((error) => {
+						console.error('SSO authentication error:', error);
+						console.error('Error details:', {
+							message: error instanceof Error ? error.message : 'Unknown error',
+							stack: error instanceof Error ? error.stack : undefined,
+							name: error instanceof Error ? error.name : 'Unknown'
+						});
+						resolve({
+							success: false,
+							error: error instanceof Error ? error.message : 'SSO authentication failed'
+						});
+					});
+			});
 		} catch (error) {
-			console.error('SSO authentication error:', error);
+			console.error('SSO authentication outer error:', error);
 			return {
 				success: false,
 				error: error instanceof Error ? error.message : 'SSO authentication failed'
 			};
 		} finally {
 			this.authPromise = null;
+		}
+	}
+
+	private async getClientSideToken(): Promise<string> {
+		return new Promise((resolve, reject) => {
+			console.log('Getting auth token from Microsoft Teams...');
+			console.log('Teams SDK version:', microsoftTeams.version);
+			console.log('Current window location:', window.location.href);
+			console.log('Parent window:', window.parent !== window ? 'Has parent' : 'No parent');
+
+			// Try to get auth token with specific parameters
+			const authTokenRequest = {
+				successCallback: (result: string) => {
+					console.log('Auth token received successfully via callback');
+					console.log('Token length:', result ? result.length : 0);
+					resolve(result);
+				},
+				failureCallback: (reason: string) => {
+					console.error('Auth token failed via callback:', reason);
+					reject('Error getting token: ' + reason);
+				}
+			};
+
+			try {
+				microsoftTeams.authentication.getAuthToken(authTokenRequest);
+			} catch (error) {
+				console.error('Error calling getAuthToken:', error);
+				reject('Error calling getAuthToken: ' + error);
+			}
+		});
+	}
+
+	private async validateToken(token: string): Promise<TeamsAuthResult> {
+		try {
+			// Try to get user session with the token
+			const sessionUser = await getSessionUser(token);
+			return {
+				success: true,
+				token: token,
+				user: sessionUser
+			};
+		} catch (error) {
+			console.error('Failed to validate token:', error);
+			return {
+				success: false,
+				error: 'Failed to validate authentication token'
+			};
 		}
 	}
 

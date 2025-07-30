@@ -116,15 +116,21 @@
 	async function handleTeamsAuthentication(): Promise<void> {
 		try {
 			console.log('Handling Teams authentication...');
+
+			// Check if we're in Teams environment first
+			const isInTeams = await teamsAuth.isInTeams();
+			if (!isInTeams) {
+				console.log('Not in Teams environment, skipping authentication');
+				return;
+			}
+
 			const authResult = await teamsAuth.authenticateWithSSO();
-			
+
 			if (authResult.success && authResult.token) {
 				console.log('Teams authentication successful');
 				const sessionUser = await getSessionUser(authResult.token);
 				user.set(sessionUser);
-				// Assuming auth is a store, but it's not defined in the original file.
-				// This line will cause an error if auth is not defined.
-				// auth.set(true); 
+				// Note: auth store might not be available in this context
 			} else {
 				console.error('Teams authentication failed:', authResult.error);
 			}

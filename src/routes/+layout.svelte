@@ -486,13 +486,20 @@
 	async function handleTeamsAuthentication(): Promise<void> {
 		try {
 			console.log('Handling Teams authentication...');
+
+			// Check if we're in Teams environment first
+			const isInTeams = await teamsAuth.isInTeams();
+			if (!isInTeams) {
+				console.log('Not in Teams environment, skipping authentication');
+				return;
+			}
+
 			const authResult = await teamsAuth.authenticateWithSSO();
-			
+
 			if (authResult.success && authResult.token) {
 				console.log('Teams authentication successful');
 				const sessionUser = await getSessionUser(authResult.token);
 				user.set(sessionUser);
-				// auth.set(true); // This line was removed as per the new_code
 			} else {
 				console.error('Teams authentication failed:', authResult.error);
 			}
