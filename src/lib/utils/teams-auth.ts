@@ -54,15 +54,17 @@ class TeamsAuthManager {
 				user: context.user ? 'User available' : 'No user',
 				page: context.page
 			});
-			
+
 			// Check if we're in Teams and have proper configuration
 			const isTeams = context.app.host.name === 'Teams';
 			console.log('Is in Teams:', isTeams);
-			
+
 			if (isTeams && !context.user) {
-				console.warn('In Teams but no user context available - this might indicate a configuration issue');
+				console.warn(
+					'In Teams but no user context available - this might indicate a configuration issue'
+				);
 			}
-			
+
 			return isTeams;
 		} catch (error) {
 			console.error('Failed to check Teams environment:', error);
@@ -159,7 +161,7 @@ class TeamsAuthManager {
 	private async _authenticateWithSSO(): Promise<TeamsAuthResult> {
 		try {
 			console.log('Starting SSO authentication flow...');
-			
+
 			// Follow the exact pattern from Microsoft documentation
 			return new Promise((resolve, reject) => {
 				console.log('Initializing Teams SDK...');
