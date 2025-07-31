@@ -273,7 +273,7 @@ class QdrantClient(VectorDBBase):
             #         type=models.KeywordIndexType.KEYWORD,
             #         is_tenant=False,
             #         on_disk=False,
-            #     ),  
+            #     ),
             #     wait=False,
             # )
 
@@ -469,7 +469,12 @@ class QdrantClient(VectorDBBase):
                 query=vectors[0],
                 prefetch=prefetch_query,
                 limit=limit,
-                search_params=models.SearchParams(hnsw_ef=100, exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
+                search_params=models.SearchParams(
+                    hnsw_ef=100,
+                    exact=False,
+                    indexed_only=True,
+                    quantization=models.QuantizationSearchParams(rescore=False),
+                ),
             )
 
             get_result = self._result_to_get_result(query_response.points)
@@ -542,7 +547,12 @@ class QdrantClient(VectorDBBase):
                 collection_name=mt_collection,
                 query_filter=combined_filter,
                 limit=limit,
-                search_params=models.SearchParams(hnsw_ef=100, exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
+                search_params=models.SearchParams(
+                    hnsw_ef=100,
+                    exact=False,
+                    indexed_only=True,
+                    quantization=models.QuantizationSearchParams(rescore=False),
+                ),
             )
 
             return self._result_to_get_result(points.points)
@@ -583,7 +593,12 @@ class QdrantClient(VectorDBBase):
                 collection_name=mt_collection,
                 query_filter=models.Filter(must=[tenant_filter]),
                 limit=NO_LIMIT,
-                search_params=models.SearchParams(hnsw_ef=100, exact=False,indexed_only=True,quantization=models.QuantizationSearchParams(rescore=False))
+                search_params=models.SearchParams(
+                    hnsw_ef=100,
+                    exact=False,
+                    indexed_only=True,
+                    quantization=models.QuantizationSearchParams(rescore=False),
+                ),
             )
 
             return self._result_to_get_result(points.points)
@@ -630,7 +645,7 @@ class QdrantClient(VectorDBBase):
                 )
                 # Try operation again - no need for dimension adjustment since we just created with correct dimensions
                 # if operation_name == "insert":
-                    
+
                 #     return None
                 # else:  # upsert
                 return self.client.upsert(mt_collection, points)
