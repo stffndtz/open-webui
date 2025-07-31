@@ -1688,6 +1688,22 @@ async def oauth_login(provider: str, request: Request):
     """
     return await oauth_manager.handle_login(request, provider)
 
+@app.get("/oauth/microsoft/silent")
+async def microsoft_silent_auth(request: Request):
+    """
+    Handle silent authentication for Microsoft Teams.
+    """
+    try:
+        teams_token = request.query_params.get("teams_token")
+        if not teams_token:
+            raise HTTPException(status_code=400, detail="Missing teams_token parameter")
+        
+        # Validate the token and create user session
+        # This would integrate with your existing OAuth system
+        return {"success": True, "token": "your_session_token"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Silent authentication failed")
 
 # OAuth login logic is as follows:
 # 1. Attempt to find a user with matching subject ID, tied to the provider

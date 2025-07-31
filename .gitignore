@@ -310,3 +310,6 @@ dist
 cypress/videos
 cypress/screenshots
 .vscode/settings.json
+
+teams-app-manifest.json
+teams-app-setup.md

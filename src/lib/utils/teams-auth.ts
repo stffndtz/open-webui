@@ -97,7 +97,7 @@ class TeamsAuthManager {
 			console.log('Getting auth token from Microsoft Teams...');
 
 			// Follow the exact pattern from Microsoft documentation
-			return new Promise((resolve, reject) => {
+			return new Promise((resolve) => {
 				microsoftTeams.authentication
 					.getAuthToken()
 					.then((token) => {
@@ -163,7 +163,7 @@ class TeamsAuthManager {
 			console.log('Starting SSO authentication flow...');
 
 			// Follow the exact pattern from Microsoft documentation
-			return new Promise((resolve, reject) => {
+			return new Promise((resolve) => {
 				console.log('Initializing Teams SDK...');
 				microsoftTeams.app
 					.initialize()
@@ -223,6 +223,7 @@ class TeamsAuthManager {
 
 			// Try to get auth token with specific parameters
 			const authTokenRequest = {
+				prompt: 'none', // Try to get token without prompting
 				successCallback: (result: string) => {
 					console.log('Auth token received successfully via callback');
 					console.log('Token length:', result ? result.length : 0);
@@ -230,7 +231,20 @@ class TeamsAuthManager {
 				},
 				failureCallback: (reason: string) => {
 					console.error('Auth token failed via callback:', reason);
-					reject('Error getting token: ' + reason);
+
+					// Handle specific embedded browser error
+					if (
+						reason.includes('embedded browser') ||
+						reason.includes('URL was unable to be opened')
+					) {
+						console.warn(
+							'Embedded browser error detected, trying alternative authentication method'
+						);
+						// Try alternative authentication method
+						this.tryAlternativeAuth(resolve, (error: string) => reject(error));
+					} else {
+						reject('Error getting token: ' + reason);
+					}
 				}
 			};
 
@@ -241,6 +255,33 @@ class TeamsAuthManager {
 				reject('Error calling getAuthToken: ' + error);
 			}
 		});
+	}
+
+	private async tryAlternativeAuth(
+		resolve: (value: string) => void,
+		_reject: (reason: string) => void
+	): Promise<void> {
+		try {
+			console.log('Trying alternative authentication method...');
+
+			// Try to get token with login prompt instead of silent auth
+			const tokenRequest = {
+				prompt: 'login', // Force login prompt instead of silent auth
+				successCallback: (result: string) => {
+					console.log('Alternative auth successful');
+					resolve(result);
+				},
+				failureCallback: (reason: string) => {
+					console.error('Alternative auth failed:', reason);
+					_reject('Alternative authentication failed: ' + reason);
+				}
+			};
+
+			microsoftTeams.authentication.getAuthToken(tokenRequest);
+		} catch (error) {
+			console.error('Alternative auth error:', error);
+			_reject('Alternative authentication error: ' + error);
+		}
 	}
 
 	private async validateToken(token: string): Promise<TeamsAuthResult> {
