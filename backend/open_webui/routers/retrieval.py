@@ -1142,7 +1142,7 @@ def save_docs_to_vector_db(
     if metadata and "hash" in metadata:
         # TODO: this is not working for multi-tenant mode
         # if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
-        
+
         result = VECTOR_DB_CLIENT.query(
             collection_name=collection_name,
             filter={"hash": metadata["hash"]},
@@ -1312,7 +1312,9 @@ def save_docs_to_vector_db(
             user=user,
         )
 
-        log.info(f"adding to collection {collection_name} with {len(embeddings)} embeddings")
+        log.info(
+            f"adding to collection {collection_name} with {len(embeddings)} embeddings"
+        )
 
         items = [
             {

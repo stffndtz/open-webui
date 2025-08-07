@@ -99,7 +99,7 @@ class QdrantClient(VectorDBBase):
             ),
         )
 
-         # Create payload indexes for efficient filtering
+        # Create payload indexes for efficient filtering
         self.client.create_payload_index(
             collection_name=collection_name_with_prefix,
             field_name="metadata.hash",
@@ -160,8 +160,6 @@ class QdrantClient(VectorDBBase):
         # pointers:
         # models.Document
         # https://qdrant.tech/documentation/embeddings/openai/
-        
-
 
         return [
             PointStruct(
@@ -251,8 +249,8 @@ class QdrantClient(VectorDBBase):
         self._create_collection_if_not_exists(collection_name, len(items[0]["vector"]))
         points = self._create_points(items)
 
-        self.client.upsert(f"{self.collection_prefix}_{collection_name}", points);
-        
+        self.client.upsert(f"{self.collection_prefix}_{collection_name}", points)
+
         # self.client.upload_points(f"{self.collection_prefix}_{collection_name}", points)
 
     def upsert(self, collection_name: str, items: list[VectorItem]):
