@@ -110,7 +110,7 @@
 				context &&
 				context.app &&
 				context.app.host &&
-				(context.app.host.name as string === 'teams' || context.app.host.name as string === 'teamsModern')
+				(context.app.host.name === 'teams' || context.app.host.name === 'teamsModern')
 			);
 		} catch (error) {
 			console.log('Not in Teams environment:', error);
@@ -256,8 +256,6 @@
 		await setSessionUser(sessionUser);
 	};
 
-
-
 	let onboarding = false;
 
 	async function setLogoImage() {
@@ -334,8 +332,6 @@
 	<div class="w-full absolute top-0 left-0 right-0 h-8 drag-region" />
 
 	{#if loaded}
-		
-
 		<div
 			class="fixed bg-transparent min-h-screen w-full flex justify-center font-primary z-50 text-black dark:text-white"
 			id="auth-container"
