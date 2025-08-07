@@ -19,7 +19,7 @@
 	import OnBoarding from '$lib/components/OnBoarding.svelte';
 	import * as microsoftTeams from '@microsoft/teams-js';
 
-	const i18n = getContext('i18n') as any;
+	const i18n = getContext('i18n');
 
 	let loaded = false;
 
