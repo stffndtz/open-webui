@@ -126,7 +126,7 @@
 			if (context && context.user) {
 				return {
 					id: context.user.id,
-					email: (context.user).email,
+					email: context.user.email,
 					name: context.user.displayName
 				};
 			}
