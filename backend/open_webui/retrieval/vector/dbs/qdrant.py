@@ -19,6 +19,8 @@ from open_webui.config import (
     QDRANT_GRPC_PORT,
     QDRANT_PREFER_GRPC,
     QDRANT_COLLECTION_PREFIX,
+    QDRANT_TIMEOUT,
+    QDRANT_HNSW_M,
 )
 from open_webui.env import SRC_LOG_LEVELS
 
@@ -36,6 +38,8 @@ class QdrantClient(VectorDBBase):
         self.QDRANT_ON_DISK = QDRANT_ON_DISK
         self.PREFER_GRPC = QDRANT_PREFER_GRPC
         self.GRPC_PORT = QDRANT_GRPC_PORT
+        self.QDRANT_TIMEOUT = QDRANT_TIMEOUT
+        self.QDRANT_HNSW_M = QDRANT_HNSW_M
 
         if not self.QDRANT_URI:
             self.client = None
@@ -53,9 +57,14 @@ class QdrantClient(VectorDBBase):
                 grpc_port=self.GRPC_PORT,
                 prefer_grpc=self.PREFER_GRPC,
                 api_key=self.QDRANT_API_KEY,
+                timeout=self.QDRANT_TIMEOUT,
             )
         else:
-            self.client = Qclient(url=self.QDRANT_URI, api_key=self.QDRANT_API_KEY)
+            self.client = Qclient(
+                url=self.QDRANT_URI,
+                api_key=self.QDRANT_API_KEY,
+                timeout=QDRANT_TIMEOUT,
+            )
 
     def _result_to_get_result(self, points) -> GetResult:
         ids = []
@@ -85,38 +94,8 @@ class QdrantClient(VectorDBBase):
                 distance=models.Distance.COSINE,
                 on_disk=self.QDRANT_ON_DISK,
             ),
-            quantization_config=models.ScalarQuantization(
-                scalar=models.ScalarQuantizationConfig(
-                    type=models.ScalarType.INT8,
-                    always_ram=True,
-                ),
-            ),
-            # optimizers_config=models.OptimizersConfigDiff(default_segment_number=16),
             hnsw_config=models.HnswConfigDiff(
-                m=32,
-                ef_construct=64,
-                on_disk=self.QDRANT_ON_DISK,
-            ),
-        )
-
-         # Create payload indexes for efficient filtering
-        self.client.create_payload_index(
-            collection_name=collection_name_with_prefix,
-            field_name="metadata.hash",
-            field_schema=models.KeywordIndexParams(
-                type=models.KeywordIndexType.KEYWORD,
-                is_tenant=False,
-                on_disk=False,
-            ),
-        )
-
-        self.client.create_payload_index(
-            collection_name=collection_name_with_prefix,
-            field_name="metadata.file_id",
-            field_schema=models.KeywordIndexParams(
-                type=models.KeywordIndexType.KEYWORD,
-                is_tenant=False,
-                on_disk=False,
+                m=self.QDRANT_HNSW_M,
             ),
         )
 
@@ -222,29 +201,29 @@ class QdrantClient(VectorDBBase):
                     )
                 )
 
-            points = self.client.query_points(
+            points = self.client.scroll(
                 collection_name=f"{self.collection_prefix}_{collection_name}",
-                query_filter=models.Filter(should=field_conditions),
+                scroll_filter=models.Filter(should=field_conditions),
                 limit=limit,
                 search_params=models.SearchParams(
                     quantization=models.QuantizationSearchParams(rescore=False)
                 ),
             )
-            return self._result_to_get_result(points.points)
+            return self._result_to_get_result(points[0])
         except Exception as e:
             log.exception(f"Error querying a collection '{collection_name}': {e}")
             return None
 
     def get(self, collection_name: str) -> Optional[GetResult]:
         # Get all the items in the collection.
-        points = self.client.query_points(
+        points = self.client.scroll(
             collection_name=f"{self.collection_prefix}_{collection_name}",
             limit=NO_LIMIT,  # otherwise qdrant would set limit to 10!
             search_params=models.SearchParams(
                 quantization=models.QuantizationSearchParams(rescore=False)
             ),
         )
-        return self._result_to_get_result(points.points)
+        return self._result_to_get_result(points[0])
 
     def insert(self, collection_name: str, items: list[VectorItem]):
         # Insert the items into the collection, if the collection does not exist, it will be created.

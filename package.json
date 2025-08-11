@@ -1,6 +1,10 @@
 {
 	"name": "open-webui",
+<<<<<<< HEAD
 	"version": "0.6.18-NORD-v0.0.1",
+=======
+	"version": "0.6.22",
+>>>>>>> 438e5d966f0f64f9ea3feab22724a5bd96a4127b
 	"private": true,
 	"scripts": {
 		"dev": "npm run pyodide:fetch && vite dev --host",
@@ -59,6 +63,7 @@
 		"@codemirror/theme-one-dark": "^6.1.2",
 		"@floating-ui/dom": "^1.7.2",
 		"@huggingface/transformers": "^3.0.0",
+		"@joplin/turndown-plugin-gfm": "^1.0.62",
 		"@mediapipe/tasks-vision": "^0.10.17",
 		"@microsoft/teams-js": "^2.39.1",
 		"@pyscript/core": "^0.4.32",
@@ -74,6 +79,7 @@
 		"@tiptap/extension-image": "^3.0.7",
 		"@tiptap/extension-link": "^3.0.7",
 		"@tiptap/extension-list": "^3.0.7",
+		"@tiptap/extension-mention": "^3.0.9",
 		"@tiptap/extension-table": "^3.0.7",
 		"@tiptap/extension-typography": "^3.0.7",
 		"@tiptap/extension-youtube": "^3.0.7",
