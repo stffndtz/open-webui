@@ -433,12 +433,12 @@
 	let showToolsButton = false;
 	$: showToolsButton = toolServers.length + selectedToolIds.length > 0;
 
-	let showWebSearchButton = false;
-	$: showWebSearchButton =
-		(atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length ===
-			webSearchCapableModels.length &&
-		$config?.features?.enable_web_search &&
-		($_user.role === 'admin' || $_user?.permissions?.features?.web_search);
+	let showWebSearchButton = true;
+	// $: showWebSearchButton =
+	// 	(atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length ===
+	// 		webSearchCapableModels.length &&
+	// 	$config?.features?.enable_web_search &&
+	// 	($_user.role === 'admin' || $_user?.permissions?.features?.web_search);
 
 	let showImageGenerationButton = false;
 	$: showImageGenerationButton =
