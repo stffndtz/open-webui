@@ -1735,10 +1735,11 @@
 							? codeInterpreterEnabled
 							: false,
 					web_search:
-						$config?.features?.enable_web_search &&
-						($user?.role === 'admin' || $user?.permissions?.features?.web_search)
-							? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
-							: false,
+						// $config?.features?.enable_web_search &&
+						// ($user?.role === 'admin' || $user?.permissions?.features?.web_search)
+						// 	? webSearchEnabled || ($settings?.webSearch ?? false) === 'always'
+						// 	: false,
+						true,
 					memory: $settings?.memory ?? false
 				},
 				variables: {
