@@ -20,7 +20,7 @@
 	import * as microsoftTeams from '@microsoft/teams-js';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 
-	const i18n = getContext('i18n') as any;
+	const i18n = getContext('i18n');
 
 	let loaded = false;
 
@@ -33,13 +33,13 @@
 
 	let ldapUsername = '';
 
-	const querystringValue = (key: string) => {
+	const querystringValue = (key) => {
 		const querystring = window.location.search;
 		const urlParams = new URLSearchParams(querystring);
 		return urlParams.get(key);
 	};
 
-	const setSessionUser = async (sessionUser: any) => {
+	const setSessionUser = async (sessionUser) => {
 		if (sessionUser) {
 			console.log(sessionUser);
 			toast.success($i18n.t(`You're now logged in.`));
@@ -119,7 +119,7 @@
 				context &&
 				context.app &&
 				context.app.host &&
-				(context.app.host.name as string === 'teams' || context.app.host.name as string === 'teamsModern')
+				(context.app.host.name === 'teams' || context.app.host.name === 'teamsModern')
 			);
 		} catch (error) {
 			console.log('Not in Teams environment:', error);
@@ -135,7 +135,7 @@
 			if (context && context.user) {
 				return {
 					id: context.user.id,
-					email: (context.user as any).email,
+					email: context.user.email,
 					name: context.user.displayName
 				};
 			}
@@ -148,7 +148,7 @@
 	};
 
 	// Attempt silent authentication using Teams context
-	const attemptSilentAuth = async (userInfo: any) => {
+	const attemptSilentAuth = async (userInfo) => {
 		try {
 			// For Teams apps, we can use the user context directly
 			// This avoids the authentication context issue
@@ -267,13 +267,11 @@
 		await setSessionUser(sessionUser);
 	};
 
-
-
 	let onboarding = false;
 
 	async function setLogoImage() {
 		await tick();
-		const logo = document.getElementById('logo') as HTMLImageElement;
+		const logo = document.getElementById('logo');
 
 		if (logo) {
 			const isDarkMode = document.documentElement.classList.contains('dark');
