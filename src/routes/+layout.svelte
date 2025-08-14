@@ -779,13 +779,51 @@
 				} else {
 					// Check if we're in Teams environment and handle authentication
 					try {
-						await microsoftTeams.app.initialize();
-						console.log('Teams SDK initialized successfully');
+						// await microsoftTeams.app.initialize();
+						// console.log('Teams SDK initialized successfully');
 
 						// If we're in Teams and no token, try Teams authentication
-						if (!localStorage.token) {
-							await handleTeamsAuthentication();
-						}
+						// if (!localStorage.token) {
+						// await handleTeamsAuthentication();
+						await microsoftTeams.app
+							.initialize()
+							.then(async () => {
+								await microsoftTeams.authentication
+									.authenticate({
+										url: `${WEBUI_BASE_URL}/oauth/microsoft/login`, // Your backend authentication URL
+										width: 600,
+										height: 535
+									})
+									.then(async (result) => {
+										console.log('Authentication successful!', result);
+										localStorage.token = result;
+										// Handle the result, such as storing the token or updating the UI
+										const sessionUser = await getSessionUser(result).catch((error) => {
+											toast.error(`getSessionUser failed: ${error}`);
+											return null;
+										});
+										if (!sessionUser) {
+											toast.error(`no Session User found: ${error}`);
+											return;
+										}
+
+										localStorage.token = result;
+										toast.info(`Token: ${localStorage.token}`);
+										await user.set(sessionUser);
+										await config.set(await getBackendConfig());
+										return;
+									})
+									.catch((error) => {
+										console.error('Authentication failed', error);
+										toast.error(`Teams authentication failed: ${error}`);
+									});
+							})
+							.catch(() => {
+								console.log('no teams');
+								toast.warning(`No Teams environment detected`);
+							});
+
+						// }
 					} catch (error) {
 						console.log('Not in Teams environment or Teams SDK not available:', error);
 
