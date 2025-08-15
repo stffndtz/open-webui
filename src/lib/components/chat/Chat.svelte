@@ -1676,7 +1676,7 @@
 						($user?.role === 'admin' || $user?.permissions?.features?.code_interpreter)
 							? codeInterpreterEnabled
 							: false,
-					web_search: $config?.features?.enable_web_search ? webSearchEnabled : false,
+					web_search: true,
 					memory: $settings?.memory ?? false
 				},
 				variables: {
