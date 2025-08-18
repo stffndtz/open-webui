@@ -107,7 +107,8 @@
 				context &&
 				context.app &&
 				context.app.host &&
-				(context.app.host.name as string === 'teams' || context.app.host.name as string === 'teamsModern')
+				((context.app.host.name as string) === 'teams' ||
+					(context.app.host.name as string) === 'teamsModern')
 			);
 		} catch (error) {
 			console.log('Not in Teams environment:', error);
@@ -252,8 +253,6 @@
 		localStorage.token = token;
 		await setSessionUser(sessionUser);
 	};
-
-
 
 	let onboarding = false;
 
