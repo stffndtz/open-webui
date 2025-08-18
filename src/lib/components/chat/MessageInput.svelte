@@ -170,6 +170,8 @@
 	let showWebSearchButton = false;
 	$: showWebSearchButton = true;
 
+	console.log('showWebSearchButton IS SET', showWebSearchButton);
+
 	let showImageGenerationButton = false;
 	$: showImageGenerationButton =
 		(atSelectedModel?.id ? [atSelectedModel.id] : selectedModels).length ===
