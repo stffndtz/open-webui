@@ -2,7 +2,7 @@
 	import { io } from 'socket.io-client';
 	import { spring } from 'svelte/motion';
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
-	import * as microsoftTeams from '@microsoft/teams-js';
+	import {app, authentication} from '@microsoft/teams-js';
 
 	let loadingProgress = spring(0, {
 		stiffness: 0.05
@@ -482,11 +482,10 @@
 	const getTeamsUserInfo = async () => {
 		try {
 			// Try to get user info from context first (this is always available)
-			const context = await microsoftTeams.app.getContext();
+			const context = await app.getContext();
 			if (context && context.user) {
 				return {
 					id: context.user.id,
-					email: context.user.email,
 					name: context.user.displayName
 				};
 			}
@@ -565,24 +564,24 @@
 	const handleTeamsAuthentication = async () => {
 		try {
 			// Initialize Teams SDK
-			await microsoftTeams.app.initialize();
+			await app.initialize();
 
 			// Check if we're in Teams environment
-			const context = await microsoftTeams.app.getContext();
+			const context = await app.getContext();
 			console.log('Teams context:', context);
 
 			// Check if user is already authenticated in Teams
-			const userInfo = await microsoftTeams.authentication.getAuthToken();
+			const userInfo = await authentication.getAuthToken();
 			if (userInfo) {
 				console.log('User already authenticated in Teams, attempting silent auth');
 
 				// Try to get user info directly from Teams
 				try {
-					const teamsUser = await microsoftTeams.app.getContext();
+					const teamsUser = await app.getContext();
 					console.log('Teams user info:', teamsUser);
 
 					// Try to authenticate with the Teams token
-					const authResult = await microsoftTeams.authentication.authenticate({
+					const authResult = await authentication.authenticate({
 						url: `${WEBUI_BASE_URL}/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
 						width: 0, // Hidden window for silent auth
 						height: 0
@@ -608,7 +607,7 @@
 			}
 
 			// Full authentication flow with iframe
-			const authResult = await microsoftTeams.authentication.authenticate({
+			const authResult = await authentication.authenticate({
 				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
 				width: 600,
 				height: 535
@@ -630,14 +629,14 @@
 					await config.set(await getBackendConfig());
 
 					// Close the authentication dialog
-					microsoftTeams.authentication.notifySuccess(authResult);
+					authentication.notifySuccess(authResult);
 				}
 			}
 		} catch (error) {
 			console.error('Teams authentication failed:', error);
 			toast.error('Teams authentication failed. Please try again.');
 			// Notify Teams that authentication failed
-			microsoftTeams.authentication.notifyFailure('Authentication failed');
+			authentication.notifyFailure('Authentication failed');
 		}
 	};
 
