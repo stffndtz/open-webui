@@ -11,6 +11,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
 
 jobs:
   build-main-image:
@@ -58,6 +59,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract branch name
+        shell: bash
+        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
+        id: extract_branch
+
       - name: Extract metadata for Docker images (default latest tag)
         id: meta
         uses: docker/metadata-action@v5
@@ -70,7 +76,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
           flavor: |
-            latest=${{ github.ref == 'refs/heads/main' }}
+            latest=${{ env.BRANCH_NAME }}
 
       - name: Extract metadata for Docker cache
         id: cache-meta
@@ -461,7 +467,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
           flavor: |
-            latest=${{ github.ref == 'refs/heads/main' }}
+            latest=${{ env.BRANCH_NAME }}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
