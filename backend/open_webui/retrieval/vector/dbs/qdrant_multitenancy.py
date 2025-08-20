@@ -322,6 +322,7 @@ class QdrantClient(VectorDBBase):
         """
         Upsert items with tenant ID.
         """
+        log.info(f"upsert: {collection_name} {items}")
         if not self.client or not items:
             return None
         mt_collection, tenant_id = self._get_collection_and_tenant_id(collection_name)

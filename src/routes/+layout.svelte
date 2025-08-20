@@ -1,7 +1,8 @@
-<script>
+<script lang="ts">
 	import { io } from 'socket.io-client';
 	import { spring } from 'svelte/motion';
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
+	import * as microsoftTeams from '@microsoft/teams-js';
 
 	let loadingProgress = spring(0, {
 		stiffness: 0.05
@@ -62,12 +63,12 @@
 	const bc = new BroadcastChannel('active-tab-channel');
 
 	let loaded = false;
-	let tokenTimer = null;
+	let tokenTimer: NodeJS.Timeout | null = null;
 
 	const BREAKPOINT = 768;
 
-	const setupSocket = async (enableWebsocket) => {
-		const _socket = io(`${WEBUI_BASE_URL}` || undefined, {
+	const setupSocket = async (enableWebsocket: boolean) => {
+		const _socket = io(`${WEBUI_BASE_URL}` || '', {
 			reconnection: true,
 			reconnectionDelay: 1000,
 			reconnectionDelayMax: 5000,
@@ -109,10 +110,10 @@
 		});
 	};
 
-	const executePythonAsWorker = async (id, code, cb) => {
-		let result = null;
-		let stdout = null;
-		let stderr = null;
+	const executePythonAsWorker = async (id: string, code: string, cb: (result: any) => void) => {
+		let result: any = null;
+		let stdout: any = null;
+		let stderr: any = null;
 
 		let executing = true;
 		let packages = [
@@ -210,16 +211,20 @@
 		};
 	};
 
-	const executeTool = async (data, cb) => {
-		const toolServer = $settings?.toolServers?.find((server) => server.url === data.server?.url);
-		const toolServerData = $toolServers?.find((server) => server.url === data.server?.url);
+	const executeTool = async (data: any, cb: (result: any) => void) => {
+		const toolServer = $settings?.toolServers?.find(
+			(server: any) => server.url === data.server?.url
+		);
+		const toolServerData = $toolServers?.find((server: any) => server.url === data.server?.url);
 
 		console.log('executeTool', data, toolServer);
 
 		if (toolServer) {
 			console.log(toolServer);
 			const res = await executeToolServer(
-				(toolServer?.auth_type ?? 'bearer') === 'bearer' ? toolServer?.key : localStorage.token,
+				(toolServer?.auth_type ?? 'bearer') === 'bearer'
+					? (toolServer?.key as string)
+					: localStorage.token || '',
 				toolServer.url,
 				data?.name,
 				data?.params,
@@ -243,7 +248,7 @@
 		}
 	};
 
-	const chatEventHandler = async (event, cb) => {
+	const chatEventHandler = async (event: any, cb: (result: any) => void) => {
 		const chat = $page.url.pathname.includes(`/c/${event.chat_id}`);
 
 		let isFocused = document.visibilityState !== 'visible';
@@ -298,11 +303,11 @@
 				}
 			} else if (type === 'chat:title') {
 				currentChatPage.set(1);
-				await chats.set(await getChatList(localStorage.token, $currentChatPage));
+				await chats.set(await getChatList(localStorage.token || '', $currentChatPage));
 			} else if (type === 'chat:tags') {
-				tags.set(await getAllTags(localStorage.token));
+				tags.set(await getAllTags(localStorage.token || ''));
 			}
-		} else if (data?.session_id === $socket.id) {
+		} else if (data?.session_id === $socket?.id) {
 			if (type === 'execute:python') {
 				console.log('execute:python', data);
 				executePythonAsWorker(data.id, data.code, cb);
@@ -310,11 +315,11 @@
 				console.log('execute:tool', data);
 				executeTool(data, cb);
 			} else if (type === 'request:chat:completion') {
-				console.log(data, $socket.id);
+				console.log(data, $socket?.id);
 				const { session_id, channel, form_data, model } = data;
 
 				try {
-					const directConnections = $settings?.directConnections ?? {};
+					const directConnections = ($settings?.directConnections as any) ?? {};
 
 					if (directConnections) {
 						const urlIdx = model?.urlIdx;
@@ -348,10 +353,12 @@
 									console.log({ status: true });
 
 									// res will either be SSE or JSON
-									const reader = res.body.getReader();
+									const reader = res.body?.getReader();
 									const decoder = new TextDecoder();
 
 									const processStream = async () => {
+										if (!reader) return;
+
 										while (true) {
 											// Read data chunks from the response stream
 											const { done, value } = await reader.read();
@@ -390,7 +397,7 @@
 					console.error('chatCompletion', error);
 					cb(error);
 				} finally {
-					$socket.emit(channel, {
+					$socket?.emit(channel, {
 						done: true
 					});
 				}
@@ -400,7 +407,7 @@
 		}
 	};
 
-	const channelEventHandler = async (event) => {
+	const channelEventHandler = async (event: any) => {
 		if (event.data?.type === 'typing') {
 			return;
 		}
@@ -449,6 +456,99 @@
 	};
 
 	const TOKEN_EXPIRY_BUFFER = 60; // seconds
+
+	// Check if we're in a Teams environment
+	const checkTeamsEnvironment = async () => {
+		try {
+			// Check if Teams SDK is available
+			if (typeof microsoftTeams === 'undefined') {
+				return false;
+			}
+
+			// Try to initialize the SDK
+			await microsoftTeams.app.initialize();
+
+			// Try to get context
+			const context = await microsoftTeams.app.getContext();
+
+			// Check if we're in Teams (not standalone)
+			return (
+				context &&
+				context.app &&
+				context.app.host &&
+				(context.app.host.name === 'teams' || context.app.host.name === 'teamsModern')
+			);
+		} catch (error) {
+			console.log('Not in Teams environment:', error);
+			return false;
+		}
+	};
+
+	// Get Teams user info if available
+	const getTeamsUserInfo = async () => {
+		try {
+			// Try to get user info from context first (this is always available)
+			const context = await microsoftTeams.app.getContext();
+			if (context && context.user) {
+				return {
+					id: context.user.id,
+					email: context.user.email,
+					name: context.user.displayName
+				};
+			}
+
+			return null;
+		} catch (error) {
+			console.log('Could not get Teams user info:', error);
+			return null;
+		}
+	};
+
+	// Attempt silent authentication using Teams context
+	const attemptSilentAuth = async (userInfo) => {
+		try {
+			// For Teams apps, we can use the user context directly
+			// This avoids the authentication context issue
+			if (userInfo && userInfo.id) {
+				// Try to authenticate using the Teams user ID
+				const response = await fetch(`${WEBUI_BASE_URL}/oauth/microsoft/silent`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						teams_user_id: userInfo.id,
+						teams_user_email: userInfo.email,
+						teams_user_name: userInfo.name
+					})
+				});
+
+				if (response.ok) {
+					const authData = await response.json();
+					if (authData.token) {
+						localStorage.token = authData.token;
+						const sessionUser = await getSessionUser(authData.token).catch((error) => {
+							console.log('Silent auth failed, falling back to full auth:', error);
+							return null;
+						});
+
+						if (sessionUser) {
+							$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+							await user.set(sessionUser);
+							await config.set(await getBackendConfig());
+							return true; // Success
+						}
+					}
+				}
+			}
+
+			return false; // Silent auth failed
+		} catch (error) {
+			console.log('Silent authentication failed, proceeding with full auth:', error);
+			return false;
+		}
+	};
+
 	const checkTokenExpiry = async () => {
 		const exp = $user?.expires_at; // token expiry time in unix timestamp
 		const now = Math.floor(Date.now() / 1000); // current time in unix timestamp
@@ -460,10 +560,90 @@
 
 		if (now >= exp - TOKEN_EXPIRY_BUFFER) {
 			const res = await userSignOut();
-			user.set(null);
+			user.set(undefined);
 			localStorage.removeItem('token');
 
 			location.href = res?.redirect_url ?? '/auth';
+		}
+	};
+
+	// Microsoft Teams Authentication
+	const handleTeamsAuthentication = async () => {
+		try {
+			// Initialize Teams SDK
+			await microsoftTeams.app.initialize();
+
+			// Check if we're in Teams environment
+			const context = await microsoftTeams.app.getContext();
+			console.log('Teams context:', context);
+
+			// Check if user is already authenticated in Teams
+			const userInfo = await microsoftTeams.authentication.getAuthToken();
+			if (userInfo) {
+				console.log('User already authenticated in Teams, attempting silent auth');
+
+				// Try to get user info directly from Teams
+				try {
+					const teamsUser = await microsoftTeams.app.getContext();
+					console.log('Teams user info:', teamsUser);
+
+					// Try to authenticate with the Teams token
+					const authResult = await microsoftTeams.authentication.authenticate({
+						url: `${WEBUI_BASE_URL}/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
+						width: 0, // Hidden window for silent auth
+						height: 0
+					});
+
+					if (authResult) {
+						localStorage.token = authResult;
+						const sessionUser = await getSessionUser(authResult).catch((error) => {
+							console.log('Silent auth failed, falling back to full auth:', error);
+							return null;
+						});
+
+						if (sessionUser) {
+							$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+							await user.set(sessionUser);
+							await config.set(await getBackendConfig());
+							return; // Success, exit early
+						}
+					}
+				} catch (silentError) {
+					console.log('Silent authentication failed, proceeding with full auth:', silentError);
+				}
+			}
+
+			// Full authentication flow with iframe
+			const authResult = await microsoftTeams.authentication.authenticate({
+				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
+				width: 600,
+				height: 535
+			});
+
+			console.log('Teams authentication result:', authResult);
+
+			// The result should contain the token
+			if (authResult) {
+				localStorage.token = authResult;
+				const sessionUser = await getSessionUser(authResult).catch((error) => {
+					toast.error(`${error}`);
+					return null;
+				});
+
+				if (sessionUser) {
+					$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+					await user.set(sessionUser);
+					await config.set(await getBackendConfig());
+
+					// Close the authentication dialog
+					microsoftTeams.authentication.notifySuccess(authResult);
+				}
+			}
+		} catch (error) {
+			console.error('Teams authentication failed:', error);
+			toast.error('Teams authentication failed. Please try again.');
+			// Notify Teams that authentication failed
+			microsoftTeams.authentication.notifyFailure('Authentication failed');
 		}
 	};
 
@@ -486,7 +666,8 @@
 				});
 
 				if (data) {
-					appData.set(data);
+					// Note: appData is not defined in the stores, so we'll skip this for now
+					// appData.set(data);
 				}
 			}
 		}
@@ -562,7 +743,7 @@
 			const languages = await getLanguages();
 			const browserLanguages = navigator.languages
 				? navigator.languages
-				: [navigator.language || navigator.userLanguage];
+				: [navigator.language || navigator.language];
 			const lang = backendConfig.default_locale
 				? backendConfig.default_locale
 				: bestMatchingLanguage(languages, browserLanguages, 'en-US');
@@ -596,10 +777,23 @@
 						await goto(`/auth?redirect=${encodedUrl}`);
 					}
 				} else {
-					// Don't redirect if we're already on the auth page
-					// Needed because we pass in tokens from OAuth logins via URL fragments
-					if ($page.url.pathname !== '/auth') {
-						await goto(`/auth?redirect=${encodedUrl}`);
+					// Check if we're in Teams environment and handle authentication
+					try {
+						await microsoftTeams.app.initialize();
+						console.log('Teams SDK initialized successfully');
+
+						// If we're in Teams and no token, try Teams authentication
+						if (!localStorage.token) {
+							await handleTeamsAuthentication();
+						}
+					} catch (error) {
+						console.log('Not in Teams environment or Teams SDK not available:', error);
+
+						// Don't redirect if we're already on the auth page
+						// Needed because we pass in tokens from OAuth logins via URL fragments
+						if ($page.url.pathname !== '/auth') {
+							await goto(`/auth?redirect=${encodedUrl}`);
+						}
 					}
 				}
 			}
@@ -640,9 +834,10 @@
 			loaded = true;
 		}
 
-		return () => {
+		// Cleanup function
+		onDestroy(() => {
 			window.removeEventListener('resize', onResize);
-		};
+		});
 	});
 </script>
 

@@ -28,7 +28,7 @@ export const USAGE_POOL: Writable<null | string[]> = writable(null);
 export const theme = writable('system');
 
 export const shortCodesToEmojis = writable(
-	Object.entries(emojiShortCodes).reduce((acc, [key, value]) => {
+	Object.entries(emojiShortCodes).reduce((acc: Record<string, string>, [key, value]) => {
 		if (typeof value === 'string') {
 			acc[value] = key;
 		} else {
@@ -65,7 +65,9 @@ export const toolServers = writable([]);
 
 export const banners: Writable<Banner[]> = writable([]);
 
-export const settings: Writable<Settings> = writable({});
+export const settings: Writable<Settings> = writable({
+	chatDirection: 'LTR'
+});
 
 export const showSidebar = writable(false);
 export const showSearch = writable(false);
@@ -182,11 +184,14 @@ type Settings = {
 	audio?: AudioSettings;
 	showUsername?: boolean;
 	notificationEnabled?: boolean;
+	notificationSoundAlways?: boolean;
 	highContrastMode?: boolean;
 	title?: TitleSettings;
 	splitLargeDeltas?: boolean;
 	chatDirection?: 'LTR' | 'RTL' | 'auto';
 	ctrlEnterToSend?: boolean;
+	toolServers?: Record<string, unknown>[];
+	directConnections?: Record<string, unknown>;
 
 	system?: string;
 	seed?: number;
@@ -250,6 +255,8 @@ type Config = {
 		enable_api_key: boolean;
 		enable_signup: boolean;
 		enable_login_form: boolean;
+		enable_ldap?: boolean;
+		enable_websocket?: boolean;
 		enable_web_search?: boolean;
 		enable_google_drive_integration: boolean;
 		enable_onedrive_integration: boolean;
@@ -266,6 +273,7 @@ type Config = {
 			[key: string]: string;
 		};
 	};
+	onboarding?: boolean;
 	ui?: {
 		pending_user_overlay_title?: string;
 		pending_user_overlay_description?: string;
@@ -284,4 +292,6 @@ type SessionUser = {
 	name: string;
 	role: string;
 	profile_image_url: string;
+	token?: string;
+	expires_at?: number;
 };

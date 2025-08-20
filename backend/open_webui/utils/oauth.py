@@ -551,3 +551,105 @@ class OAuthManager:
         redirect_url = f"{redirect_base_url}/auth"
 
         return RedirectResponse(url=redirect_url, headers=response.headers)
+
+    async def handle_silent_auth(self, request, provider):
+        """Handle silent authentication for Microsoft Teams"""
+        if provider not in OAUTH_PROVIDERS:
+            raise HTTPException(404)
+
+        try:
+            # Get Teams user info from request body
+            body = await request.json()
+            teams_user_id = body.get("teams_user_id")
+            teams_user_email = body.get("teams_user_email")
+            teams_user_name = body.get("teams_user_name")
+
+            if not teams_user_id:
+                raise HTTPException(400, detail="Teams user ID is required")
+
+            # Create user data from Teams context
+            user_data = {
+                "sub": teams_user_id,
+                "email": teams_user_email or f"{teams_user_id}@teams.microsoft.com",
+                "name": teams_user_name or f"Teams User {teams_user_id}",
+                "picture": "",
+            }
+
+            # Use the same logic as the regular callback but without the OAuth flow
+            provider_sub = f"{provider}@{user_data['sub']}"
+            email = user_data.get("email", "").lower()
+
+            # Check if the user exists
+            user = Users.get_user_by_oauth_sub(provider_sub)
+            if not user:
+                # If the user does not exist, check if merging is enabled
+                if auth_manager_config.OAUTH_MERGE_ACCOUNTS_BY_EMAIL:
+                    # Check if the user exists by email
+                    user = Users.get_user_by_email(email)
+                    if user:
+                        # Update the user with the new oauth sub
+                        Users.update_user_oauth_sub_by_id(user.id, provider_sub)
+
+            if user:
+                determined_role = self.get_user_role(user, user_data)
+                if user.role != determined_role:
+                    Users.update_user_role_by_id(user.id, determined_role)
+
+            if not user:
+                # If the user does not exist, check if signups are enabled
+                if auth_manager_config.ENABLE_OAUTH_SIGNUP:
+                    # Check if an existing user with the same email already exists
+                    existing_user = Users.get_user_by_email(email)
+                    if existing_user:
+                        raise HTTPException(400, detail=ERROR_MESSAGES.EMAIL_TAKEN)
+
+                    name = user_data.get("name", email)
+                    role = self.get_user_role(None, user_data)
+
+                    user = Auths.insert_new_auth(
+                        email=email,
+                        password=get_password_hash(
+                            str(uuid.uuid4())
+                        ),  # Random password, not used
+                        name=name,
+                        profile_image_url=user_data.get("picture", "/user.png"),
+                        role=role,
+                        oauth_sub=provider_sub,
+                    )
+
+                    if auth_manager_config.WEBHOOK_URL:
+                        post_webhook(
+                            WEBUI_NAME,
+                            auth_manager_config.WEBHOOK_URL,
+                            WEBHOOK_MESSAGES.USER_SIGNUP(user.name),
+                            {
+                                "action": "signup",
+                                "message": WEBHOOK_MESSAGES.USER_SIGNUP(user.name),
+                                "user": user.model_dump_json(exclude_none=True),
+                            },
+                        )
+                else:
+                    raise HTTPException(
+                        status.HTTP_403_FORBIDDEN,
+                        detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+                    )
+
+            jwt_token = create_token(
+                data={"id": user.id},
+                expires_delta=parse_duration(auth_manager_config.JWT_EXPIRES_IN),
+            )
+
+            if (
+                auth_manager_config.ENABLE_OAUTH_GROUP_MANAGEMENT
+                and user.role != "admin"
+            ):
+                self.update_user_groups(
+                    user=user,
+                    user_data=user_data,
+                    default_permissions=request.app.state.config.USER_PERMISSIONS,
+                )
+
+            return {"token": jwt_token, "user": user.model_dump()}
+        except Exception as e:
+            log.error(f"Silent auth error: {e}")
+            raise HTTPException(400, detail=ERROR_MESSAGES.INVALID_CRED)

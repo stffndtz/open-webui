@@ -2154,7 +2154,7 @@ async def process_chat_response(
 
                 await stream_body_handler(response, form_data)
 
-                MAX_TOOL_CALL_RETRIES = 10
+                MAX_TOOL_CALL_RETRIES = 30
                 tool_call_retries = 0
 
                 while len(tool_calls) > 0 and tool_call_retries < MAX_TOOL_CALL_RETRIES:

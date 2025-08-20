@@ -24,6 +24,10 @@ ARG GID=0
 FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS build
 ARG BUILD_HASH
 
+# local optimization
+ENV GENERATE_SOURCEMAP=false
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
 WORKDIR /app
 
 # to store git revision in build
@@ -107,6 +111,17 @@ RUN echo -n 00000000-0000-0000-0000-000000000000 > $HOME/.cache/chroma/telemetry
 
 # Make sure the user has access to the app and root directory
 RUN chown -R $UID:$GID /app $HOME
+
+# install .NET SDK for later usage
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    mkdir -p /app/.dotnet && curl -fsSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh && \
+    bash dotnet-install.sh --version 8.0.404 --install-dir /app/.dotnet && \
+    chown -R $UID:$GID /app/.dotnet && \
+    apt-get remove -y curl && apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*;
+
+# Add .NET to PATH for all users
+ENV PATH="/app/.dotnet:${PATH}"
 
 RUN if [ "$USE_OLLAMA" = "true" ]; then \
     apt-get update && \

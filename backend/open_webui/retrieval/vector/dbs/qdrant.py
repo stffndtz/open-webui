@@ -127,6 +127,21 @@ class QdrantClient(VectorDBBase):
             )
 
     def _create_points(self, items: list[VectorItem]):
+
+        # depending on the document type, we need to create the points differently
+        # this is based on the embedding type from save_docs_to_vector_db
+        # {
+        #         "id": str(uuid.uuid4()),
+        #         "text": text,
+        #         "vector": embeddings[idx],
+        #         "metadata": metadatas[idx],
+        #     }
+        # pointers:
+        # models.Document
+        # https://qdrant.tech/documentation/embeddings/openai/
+        
+
+
         return [
             PointStruct(
                 id=item["id"],
@@ -157,6 +172,9 @@ class QdrantClient(VectorDBBase):
             collection_name=f"{self.collection_prefix}_{collection_name}",
             query=vectors[0],
             limit=limit,
+            search_params=models.SearchParams(
+                quantization=models.QuantizationSearchParams(rescore=False)
+            ),
         )
         get_result = self._result_to_get_result(query_response.points)
         return SearchResult(
@@ -187,6 +205,9 @@ class QdrantClient(VectorDBBase):
                 collection_name=f"{self.collection_prefix}_{collection_name}",
                 scroll_filter=models.Filter(should=field_conditions),
                 limit=limit,
+                search_params=models.SearchParams(
+                    quantization=models.QuantizationSearchParams(rescore=False)
+                ),
             )
             return self._result_to_get_result(points[0])
         except Exception as e:
@@ -198,6 +219,9 @@ class QdrantClient(VectorDBBase):
         points = self.client.scroll(
             collection_name=f"{self.collection_prefix}_{collection_name}",
             limit=NO_LIMIT,  # otherwise qdrant would set limit to 10!
+            search_params=models.SearchParams(
+                quantization=models.QuantizationSearchParams(rescore=False)
+            ),
         )
         return self._result_to_get_result(points[0])
 
@@ -205,7 +229,10 @@ class QdrantClient(VectorDBBase):
         # Insert the items into the collection, if the collection does not exist, it will be created.
         self._create_collection_if_not_exists(collection_name, len(items[0]["vector"]))
         points = self._create_points(items)
-        self.client.upload_points(f"{self.collection_prefix}_{collection_name}", points)
+
+        self.client.upsert(f"{self.collection_prefix}_{collection_name}", points);
+        
+        # self.client.upload_points(f"{self.collection_prefix}_{collection_name}", points)
 
     def upsert(self, collection_name: str, items: list[VectorItem]):
         # Update the items in the collection, if the items are not present, insert them. If the collection does not exist, it will be created.

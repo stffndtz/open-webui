@@ -1155,10 +1155,14 @@ def save_docs_to_vector_db(
 
     # Check if entries with the same hash (metadata.hash) already exist
     if metadata and "hash" in metadata:
+        # TODO: this is not working for multi-tenant mode
+        # if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
+        
         result = VECTOR_DB_CLIENT.query(
             collection_name=collection_name,
             filter={"hash": metadata["hash"]},
         )
+        log.info(f"result: {result}")
 
         if result is not None:
             existing_doc_ids = result.ids[0]
@@ -1167,6 +1171,7 @@ def save_docs_to_vector_db(
                 raise ValueError(ERROR_MESSAGES.DUPLICATE_CONTENT)
 
     if split:
+        log.info(f"splitting docs")
         if request.app.state.config.TEXT_SPLITTER in ["", "character"]:
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=request.app.state.config.CHUNK_SIZE,
@@ -1296,11 +1301,15 @@ def save_docs_to_vector_db(
             ),
         )
 
+        log.info(f"embedding {len(texts)} texts")
+
         embeddings = embedding_function(
             list(map(lambda x: x.replace("\n", " "), texts)),
             prefix=RAG_EMBEDDING_CONTENT_PREFIX,
             user=user,
         )
+
+        log.info(f"adding to collection {collection_name} with {len(embeddings)} embeddings")
 
         items = [
             {
@@ -1311,6 +1320,8 @@ def save_docs_to_vector_db(
             }
             for idx, text in enumerate(texts)
         ]
+
+        log.info(f"items: {items} now calling VECTOR_DB_CLIENT.insert")
 
         VECTOR_DB_CLIENT.insert(
             collection_name=collection_name,
