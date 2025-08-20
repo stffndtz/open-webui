@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import DOMPurify from 'dompurify';
 	import { marked } from 'marked';
 
@@ -20,7 +20,7 @@
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 	import * as microsoftTeams from '@microsoft/teams-js';
 
-	const i18n = getContext('i18n') as any;
+	const i18n = getContext('i18n');
 
 	let loaded = false;
 
