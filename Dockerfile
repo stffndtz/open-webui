@@ -32,8 +32,11 @@ RUN apk add --no-cache git
 COPY package.json package-lock.json ./
 RUN npm ci --force
 
+ENV GENERATE_SOURCEMAP=false
+
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 
 ######## WebUI backend ########

@@ -407,6 +407,7 @@ def get_embedding_function(
     embedding_batch_size,
     azure_api_version=None,
 ):
+    log.info(f"get_embedding_function: {embedding_engine} {embedding_model} {embedding_function} {url} {key} {embedding_batch_size} {azure_api_version}")
     if embedding_engine == "":
         return lambda query, prefix=None, user=None: embedding_function.encode(
             query, **({"prompt": prefix} if prefix else {})
@@ -423,7 +424,10 @@ def get_embedding_function(
             azure_api_version=azure_api_version,
         )
 
+        log.info(f"get_embedding_function: func done")
+
         def generate_multiple(query, prefix, user, func):
+            log.info(f"get_embedding_function: generate_multiple start")
             if isinstance(query, list):
                 embeddings = []
                 for i in range(0, len(query), embedding_batch_size):
@@ -437,6 +441,8 @@ def get_embedding_function(
                 return embeddings
             else:
                 return func(query, prefix, user)
+
+        log.info(f"get_embedding_function: generate_multiple done")
 
         return lambda query, prefix=None, user=None: generate_multiple(
             query, prefix, user, func
