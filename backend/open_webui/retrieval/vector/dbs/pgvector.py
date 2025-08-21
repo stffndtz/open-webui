@@ -79,7 +79,7 @@ class DocumentChunk(Base):
 
 class PgvectorClient(VectorDBBase):
     def __init__(self) -> None:
-
+        log.info(f"Initializing PgvectorClient with PGVECTOR_DB_URL: {PGVECTOR_DB_URL}")
         # if no pgvector uri, use the existing database connection
         if not PGVECTOR_DB_URL:
             from open_webui.internal.db import Session
@@ -98,10 +98,12 @@ class PgvectorClient(VectorDBBase):
                         poolclass=QueuePool,
                     )
                 else:
+                    log.info(f"Creating engine with NullPool")
                     engine = create_engine(
                         PGVECTOR_DB_URL, pool_pre_ping=True, poolclass=NullPool
                     )
             else:
+                log.info(f"Creating engine with QueuePool")
                 engine = create_engine(PGVECTOR_DB_URL, pool_pre_ping=True)
 
             SessionLocal = sessionmaker(
@@ -138,12 +140,14 @@ class PgvectorClient(VectorDBBase):
                     "ON document_chunk USING ivfflat (vector vector_cosine_ops) WITH (lists = 100);"
                 )
             )
+            log.info(f"Creating index on vector column")
             self.session.execute(
                 text(
                     "CREATE INDEX IF NOT EXISTS idx_document_chunk_collection_name "
                     "ON document_chunk (collection_name);"
                 )
             )
+            log.info(f"Creating index on collection name column")
             self.session.commit()
             log.info("Initialization complete.")
         except Exception as e:
@@ -156,6 +160,7 @@ class PgvectorClient(VectorDBBase):
         Check if the VECTOR_LENGTH matches the existing vector column dimension in the database.
         Raises an exception if there is a mismatch.
         """
+        log.info(f"Checking vector length")
         metadata = MetaData()
         try:
             # Attempt to reflect the 'document_chunk' table
