@@ -240,7 +240,7 @@ class PgvectorClient(VectorDBBase):
                 log.info(
                     f"Called insert {len(items)} items into collection '{collection_name}'."
                 )
-                
+                new_items = []
                 for item in items:
                     log.info(f"Inserting item {item['id']}")
                     vector = self.adjust_vector_length(item["vector"])
@@ -251,16 +251,13 @@ class PgvectorClient(VectorDBBase):
                         text=item["text"],
                         vmetadata=stringify_metadata(item["metadata"]),
                     )
-                    log.info(f"Adding item {item['id']}")
-                    self.session.add(new_chunk)
-                
-                
-                # self.session.bulk_save_objects(new_items)
-                log.info(f"Committing {len(items)} items")
+                    new_items.append(new_chunk)
+                log.info(f"Bulk saving {len(new_items)} items")
+                self.session.add_all(new_items)
+                log.info(f"Committing {len(new_items)} items")
                 self.session.commit()
-                log.info(f"Committed {len(items)} items")
                 log.info(
-                    f"Inserted {len(items)} items into collection '{collection_name}'."
+                    f"Inserted {len(new_items)} items into collection '{collection_name}'."
                 )
         except Exception as e:
             self.session.rollback()
