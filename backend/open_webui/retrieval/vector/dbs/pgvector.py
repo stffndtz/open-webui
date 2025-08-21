@@ -187,6 +187,7 @@ class PgvectorClient(VectorDBBase):
             )
 
     def adjust_vector_length(self, vector: List[float]) -> List[float]:
+        log.info(f"Adjusting vector length from {len(vector)} to {VECTOR_LENGTH}")
         # Adjust vector to have length VECTOR_LENGTH
         current_length = len(vector)
         if current_length < VECTOR_LENGTH:
@@ -231,8 +232,12 @@ class PgvectorClient(VectorDBBase):
                 log.info(f"Encrypted & inserted {len(items)} into '{collection_name}'")
 
             else:
+                log.info(
+                    f"Called insert {len(items)} items into collection '{collection_name}'."
+                )
                 new_items = []
                 for item in items:
+                    log.info(f"Inserting item {item['id']}")
                     vector = self.adjust_vector_length(item["vector"])
                     new_chunk = DocumentChunk(
                         id=item["id"],
@@ -242,7 +247,9 @@ class PgvectorClient(VectorDBBase):
                         vmetadata=stringify_metadata(item["metadata"]),
                     )
                     new_items.append(new_chunk)
+                log.info(f"Bulk saving {len(new_items)} items")
                 self.session.bulk_save_objects(new_items)
+                log.info(f"Committing {len(new_items)} items")
                 self.session.commit()
                 log.info(
                     f"Inserted {len(new_items)} items into collection '{collection_name}'."
