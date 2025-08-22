@@ -746,7 +746,7 @@ def generate_openai_batch_embeddings(
         log.debug(
             f"generate_openai_batch_embeddings:model {model} batch size: {len(texts)}"
         )
-        json_data = {"input": texts, "model": model}
+        json_data = {"input": texts, "model": model, "dimensions": 256}
         if isinstance(RAG_EMBEDDING_PREFIX_FIELD_NAME, str) and isinstance(prefix, str):
             json_data[RAG_EMBEDDING_PREFIX_FIELD_NAME] = prefix
 
