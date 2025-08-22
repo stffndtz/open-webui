@@ -1153,10 +1153,6 @@ def save_docs_to_vector_db(
         f"save_docs_to_vector_db: document {_get_docs_info(docs)} {collection_name}"
     )
 
-    log.info(
-        f"save_docs_to_vector_db: vector_db {VECTOR_DB_CLIENT}"
-    )
-
     # Check if entries with the same hash (metadata.hash) already exist
     if metadata and "hash" in metadata:
         result = VECTOR_DB_CLIENT.query(
@@ -1242,14 +1238,11 @@ def save_docs_to_vector_db(
             docs = md_split_docs
         else:
             raise ValueError(ERROR_MESSAGES.DEFAULT("Invalid text splitter"))
-    
-    log.info(f"splitting docs done {len(docs)}")
 
     if len(docs) == 0:
         raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
 
     texts = [doc.page_content for doc in docs]
-    log.info(f"creating metadata for {len(texts)} texts")
     metadatas = [
         {
             **doc.metadata,
@@ -1261,7 +1254,6 @@ def save_docs_to_vector_db(
         }
         for doc in docs
     ]
-    log.info(f"metadata done")
 
     try:
         if VECTOR_DB_CLIENT.has_collection(collection_name=collection_name):
@@ -1307,15 +1299,11 @@ def save_docs_to_vector_db(
             ),
         )
 
-        log.info(f"embedding {len(texts)} texts start")
         embeddings = embedding_function(
             list(map(lambda x: x.replace("\n", " "), texts)),
             prefix=RAG_EMBEDDING_CONTENT_PREFIX,
             user=user,
         )
-
-        log.info(f"{len(embeddings)} embeddings created")
-        log.info(f"create items start")
 
         items = [
             {
@@ -1327,15 +1315,10 @@ def save_docs_to_vector_db(
             for idx, text in enumerate(texts)
         ]
 
-        log.info(f"create items done")
-        log.info(f"insert items start")
-
         VECTOR_DB_CLIENT.insert(
             collection_name=collection_name,
             items=items,
         )
-
-        log.info(f"insert items done")
 
         return True
     except Exception as e:
@@ -1458,10 +1441,6 @@ def process_file(
                 docs = loader.load(
                     file.filename, file.meta.get("content_type"), file_path
                 )
-
-                # Loop through all docs and print their contents
-                for i, doc in enumerate(docs):
-                    log.info(f"########################### doc {i}: {doc.metadata}")
                 
                 docs = [
                     Document(

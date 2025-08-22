@@ -192,7 +192,6 @@ class PgvectorClient(VectorDBBase):
             )
 
     def adjust_vector_length(self, vector: List[float]) -> List[float]:
-        log.info(f"Adjusting vector length from {len(vector)} to {VECTOR_LENGTH}")
         # Adjust vector to have length VECTOR_LENGTH
         current_length = len(vector)
         if current_length < VECTOR_LENGTH:
@@ -237,14 +236,11 @@ class PgvectorClient(VectorDBBase):
                 log.info(f"Encrypted & inserted {len(items)} into '{collection_name}'")
 
             else:
-                log.info(
-                    f"Called insert {len(items)} items into collection '{collection_name}'."
-                )
+                
                 # Prepare all data first
                 bulk_data = []
                 for item in items:
                     json_metadata = json.dumps(item["metadata"])
-                    log.info(f"Preparing {item['id']}")
                     vector = self.adjust_vector_length(item["vector"])
                     bulk_data.append({
                         "id": item["id"],
@@ -255,7 +251,6 @@ class PgvectorClient(VectorDBBase):
                     })
 
                 # Single bulk execute
-                log.info(f"Bulk inserting {len(bulk_data)} items")
                 self.session.execute(
                     text(
                         """
@@ -270,7 +265,6 @@ class PgvectorClient(VectorDBBase):
                     bulk_data  # Pass the entire list
                 )
 
-                log.info(f"Committing {len(items)} items")
                 self.session.commit()
                 log.info(f"Inserted {len(items)} items into collection '{collection_name}'.")
         except Exception as e:
