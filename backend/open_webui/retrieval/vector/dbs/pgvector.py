@@ -243,6 +243,7 @@ class PgvectorClient(VectorDBBase):
                 # Prepare all data first
                 bulk_data = []
                 for item in items:
+                    json_metadata = json.dumps(item["metadata"])
                     log.info(f"Preparing {item['id']}")
                     vector = self.adjust_vector_length(item["vector"])
                     bulk_data.append({
@@ -250,7 +251,7 @@ class PgvectorClient(VectorDBBase):
                         "vector": vector,
                         "collection_name": collection_name,
                         "text": item["text"],
-                        "metadata_text": stringify_metadata(item["metadata"]),
+                        "metadata_text": json_metadata,
                     })
 
                 # Single bulk execute
