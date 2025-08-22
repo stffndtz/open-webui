@@ -1173,7 +1173,8 @@ def save_docs_to_vector_db(
     log.info(f"start splitting docs {len(docs)}")
     if split:
         if request.app.state.config.TEXT_SPLITTER in ["", "character"]:
-            text_splitter = RecursiveCharacterTextSplitter(
+            text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
+                model_name="gpt-4",
                 chunk_size=request.app.state.config.CHUNK_SIZE,
                 chunk_overlap=request.app.state.config.CHUNK_OVERLAP,
                 add_start_index=True,
@@ -1243,18 +1244,6 @@ def save_docs_to_vector_db(
             raise ValueError(ERROR_MESSAGES.DEFAULT("Invalid text splitter"))
     
     log.info(f"splitting docs done {len(docs)}")
-
-    # Calculate size of docs after splitting
-    total_size_bytes = sum(len(doc.page_content.encode('utf-8')) for doc in docs)
-    log.info(f"Total docs size after splitting: {total_size_bytes} bytes ({total_size_bytes / 1024:.2f} KB)")
-    
-    # Alternative: Calculate size including metadata
-    total_size_with_metadata = sum(
-        len(doc.page_content.encode('utf-8')) + 
-        len(str(doc.metadata).encode('utf-8')) 
-        for doc in docs
-    )
-    log.info(f"Total docs size with metadata after splitting: {total_size_with_metadata} bytes ({total_size_with_metadata / 1024:.2f} KB)")
 
     if len(docs) == 0:
         raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
@@ -1326,21 +1315,6 @@ def save_docs_to_vector_db(
         )
 
         log.info(f"{len(embeddings)} embeddings created")
-        
-        # Calculate size of embeddings
-        if embeddings and len(embeddings) > 0:
-            # Calculate size of all embeddings
-            total_embeddings_size = sum(len(embedding) * 4 for embedding in embeddings)  # 4 bytes per float32
-            log.info(f"Total embeddings size: {total_embeddings_size} bytes ({total_embeddings_size / 1024:.2f} KB)")
-            
-            # Calculate average embedding size
-            avg_embedding_size = total_embeddings_size / len(embeddings)
-            log.info(f"Average embedding size: {avg_embedding_size:.2f} bytes per embedding")
-            
-            # Show embedding dimensions
-            if len(embeddings[0]) > 0:
-                log.info(f"Embedding dimensions: {len(embeddings[0])} dimensions per embedding")
-        
         log.info(f"create items start")
 
         items = [
@@ -1352,24 +1326,6 @@ def save_docs_to_vector_db(
             }
             for idx, text in enumerate(texts)
         ]
-
-        # Calculate size of items
-        import json
-        items_json = json.dumps(items, default=str)  # Convert to JSON string
-        items_size_bytes = len(items_json.encode('utf-8'))
-        log.info(f"Total items size: {items_size_bytes} bytes ({items_size_bytes / 1024:.2f} KB)")
-        
-        # Calculate size breakdown
-        total_text_size = sum(len(item["text"].encode('utf-8')) for item in items)
-        total_vector_size = sum(len(item["vector"]) * 4 for item in items)  # 4 bytes per float32
-        total_metadata_size = sum(len(json.dumps(item["metadata"], default=str).encode('utf-8')) for item in items)
-        total_ids_size = sum(len(item["id"].encode('utf-8')) for item in items)
-        
-        log.info(f"Items breakdown:")
-        log.info(f"  Text: {total_text_size} bytes ({total_text_size / 1024:.2f} KB)")
-        log.info(f"  Vectors: {total_vector_size} bytes ({total_vector_size / 1024:.2f} KB)")
-        log.info(f"  Metadata: {total_metadata_size} bytes ({total_metadata_size / 1024:.2f} KB)")
-        log.info(f"  IDs: {total_ids_size} bytes ({total_ids_size / 1024:.2f} KB)")
 
         log.info(f"create items done")
         log.info(f"insert items start")
@@ -1503,28 +1459,16 @@ def process_file(
                     file.filename, file.meta.get("content_type"), file_path
                 )
 
-                # Calculate size of docs in bytes
-                total_size_bytes = sum(len(doc.page_content.encode('utf-8')) for doc in docs)
-                log.info(f"Total docs size: {total_size_bytes} bytes ({total_size_bytes / 1024:.2f} KB)")
-                
-                # Alternative: Calculate size including metadata
-                total_size_with_metadata = sum(
-                    len(doc.page_content.encode('utf-8')) + 
-                    len(str(doc.metadata).encode('utf-8')) 
-                    for doc in docs
-                )
-                log.info(f"Total docs size with metadata: {total_size_with_metadata} bytes ({total_size_with_metadata / 1024:.2f} KB)")
-
-                log.info(f"docs: {docs}")
-
                 # Loop through all docs and print their contents
-                # for i, doc in enumerate(docs):
-                #     log.info(f"########################### doc {i}: {doc.page_content}")
+                for i, doc in enumerate(docs):
+                    log.info(f"########################### doc {i}: {doc.metadata}")
+                
                 docs = [
                     Document(
                         page_content=doc.page_content,
                         metadata={
-                            **doc.metadata,
+                            # Select only specific keys from doc.metadata
+                            **{k: doc.metadata[k] for k in ['page_number'] if k in doc.metadata},
                             "name": file.filename,
                             "created_by": file.user_id,
                             "file_id": file.id,
