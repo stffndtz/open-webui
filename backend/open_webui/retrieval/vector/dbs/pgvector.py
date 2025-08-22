@@ -240,45 +240,38 @@ class PgvectorClient(VectorDBBase):
                 log.info(
                     f"Called insert {len(items)} items into collection '{collection_name}'."
                 )
-                # new_items = []
+                # Prepare all data first
+                bulk_data = []
                 for item in items:
-                    log.info(f"Executing {item['id']}")
+                    log.info(f"Preparing {item['id']}")
                     vector = self.adjust_vector_length(item["vector"])
-                    self.session.execute(
-                        text(
-                            """
-                            INSERT INTO document_chunk
-                            (id, vector, collection_name, text, vmetadata)
-                            VALUES (
-                                :id, :vector, :collection_name, :text, :metadata_text
-                            )
-                            ON CONFLICT (id) DO NOTHING
+                    bulk_data.append({
+                        "id": item["id"],
+                        "vector": vector,
+                        "collection_name": collection_name,
+                        "text": item["text"],
+                        "metadata_text": stringify_metadata(item["metadata"]),
+                    })
+
+                # Single bulk execute
+                log.info(f"Bulk inserting {len(bulk_data)} items")
+                self.session.execute(
+                    text(
                         """
-                        ),
-                        {
-                            "id": item["id"],
-                            "vector": vector,
-                            "collection_name": collection_name,
-                            "text": item["text"],
-                            "metadata_text": stringify_metadata(item["metadata"]),
-                        },
-                    )
-                    log.info(f"Saved {item['id']}")
-                    # new_chunk = DocumentChunk(
-                    #     id=item["id"],
-                    #     vector=vector,
-                    #     collection_name=collection_name,
-                    #     text=item["text"],
-                    #     vmetadata=stringify_metadata(item["metadata"]),
-                    # )
-                    # new_items.append(new_chunk)
-                # log.info(f"Bulk saving {len(new_items)} items")
-                # self.session.add_all(new_items)
+                        INSERT INTO document_chunk
+                        (id, vector, collection_name, text, vmetadata)
+                        VALUES (
+                            :id, :vector, :collection_name, :text, :metadata_text
+                        )
+                        ON CONFLICT (id) DO NOTHING
+                        """
+                    ),
+                    bulk_data  # Pass the entire list
+                )
+
                 log.info(f"Committing {len(items)} items")
                 self.session.commit()
-                log.info(
-                    f"Inserted {len(items)} items into collection '{collection_name}'."
-                )
+                log.info(f"Inserted {len(items)} items into collection '{collection_name}'.")
         except Exception as e:
             self.session.rollback()
             log.exception(f"Error during insert: {e}")
