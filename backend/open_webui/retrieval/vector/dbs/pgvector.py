@@ -332,7 +332,9 @@ class PgvectorClient(VectorDBBase):
             return
 
         # Proceed to check the vector column
+        log.info(f"Checking vector length")
         if "vector" in document_chunk_table.columns:
+            log.info(f"vector column exists")
             vector_column = document_chunk_table.columns["vector"]
             vector_type = vector_column.type
             if isinstance(vector_type, Vector):
