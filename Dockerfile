@@ -111,6 +111,14 @@ RUN echo -n 00000000-0000-0000-0000-000000000000 > $HOME/.cache/chroma/telemetry
 # Make sure the user has access to the app and root directory
 RUN chown -R $UID:$GID /app $HOME
 
+# Install common system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    git build-essential pandoc gcc netcat-openbsd curl jq \
+    python3-dev \
+    ffmpeg libsm6 libxext6 \
+    && rm -rf /var/lib/apt/lists/*
+
 # install .NET SDK for later usage
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     mkdir -p /app/.dotnet && curl -fsSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh && \
@@ -166,7 +174,13 @@ RUN pip3 install --no-cache-dir uv && \
     fi; \
     chown -R $UID:$GID /app/backend/data/
 
-
+# Install Ollama if requested
+RUN if [ "$USE_OLLAMA" = "true" ]; then \
+    date +%s > /tmp/ollama_build_hash && \
+    echo "Cache broken at timestamp: `cat /tmp/ollama_build_hash`" && \
+    curl -fsSL https://ollama.com/install.sh | sh && \
+    rm -rf /var/lib/apt/lists/*; \
+    fi
 
 # copy embedding weight from build
 # RUN mkdir -p /root/.cache/chroma/onnx_models/all-MiniLM-L6-v2
@@ -183,6 +197,15 @@ COPY --chown=$UID:$GID ./backend .
 EXPOSE 8080
 
 HEALTHCHECK CMD curl --silent --fail http://localhost:${PORT:-8080}/health | jq -ne 'input.status == true' || exit 1
+
+# Minimal, atomic permission hardening for OpenShift (arbitrary UID):
+# - Group 0 owns /app and /root
+# - Directories are group-writable and have SGID so new files inherit GID 0
+RUN set -eux; \
+    chgrp -R 0 /app /root || true; \
+    chmod -R g+rwX /app /root || true; \
+    find /app -type d -exec chmod g+s {} + || true; \
+    find /root -type d -exec chmod g+s {} + || true
 
 USER $UID:$GID
 
