@@ -1,3 +1,4 @@
+import time
 from typing import Optional, List, Dict, Any
 import logging
 import json
@@ -203,6 +204,24 @@ class PgvectorClient(VectorDBBase):
             vector = vector[:VECTOR_LENGTH]
         return vector
 
+
+    # Process all vectors at once:
+    def batch_adjust_vectors(self, items):
+        """Adjust all vectors in one operation"""
+        vectors = [item["vector"] for item in items]
+        # Assuming adjust_vector_length does padding/truncation
+        adjusted_vectors = []
+        for vector in vectors:
+            if len(vector) == VECTOR_LENGTH:
+                adjusted_vectors.append(vector)
+            elif len(vector) < VECTOR_LENGTH:
+                # Pad with zeros
+                adjusted_vectors.append(vector + [0.0] * (VECTOR_LENGTH - len(vector)))
+            else:
+                # Truncate
+                adjusted_vectors.append(vector[:VECTOR_LENGTH])
+        return adjusted_vectors
+    
     def insert(self, collection_name: str, items: List[VectorItem]) -> None:
         try:
             if PGVECTOR_PGCRYPTO:
@@ -240,15 +259,20 @@ class PgvectorClient(VectorDBBase):
                 log.info(
                     f"Called insert {len(items)} items into collection '{collection_name}'."
                 )
+
+                start_time = time.time()
+                log.info("Dropping vector index for bulk insert")
+                self.session.execute(text("DROP INDEX IF EXISTS idx_document_chunk_vector;"))
                 # Prepare all data first
+                # log.info(f"Batch processing {len(items)} vectors")
+                adjusted_vectors = self.batch_adjust_vectors(items)
                 bulk_data = []
-                for item in items:
+                for i, item in enumerate(items):
                     json_metadata = json.dumps(item["metadata"])
-                    log.info(f"Preparing {item['id']}")
-                    vector = self.adjust_vector_length(item["vector"])
+                    
                     bulk_data.append({
                         "id": item["id"],
-                        "vector": vector,
+                        "vector": adjusted_vectors[i],
                         "collection_name": collection_name,
                         "text": item["text"],
                         "metadata_text": json_metadata,
@@ -256,6 +280,7 @@ class PgvectorClient(VectorDBBase):
 
                 # Single bulk execute
                 log.info(f"Bulk inserting {len(bulk_data)} items")
+                insert_start = time.time()
                 self.session.execute(
                     text(
                         """
@@ -272,7 +297,24 @@ class PgvectorClient(VectorDBBase):
 
                 log.info(f"Committing {len(items)} items")
                 self.session.commit()
-                log.info(f"Inserted {len(items)} items into collection '{collection_name}'.")
+                insert_time = time.time() - insert_start
+                log.info(f"Bulk insert completed in {insert_time:.2f} seconds")
+                
+                # 4. Recreate vector index (one-time cost)
+                log.info("Recreating vector index")
+                index_start = time.time()
+                self.session.execute(text("""
+                    CREATE INDEX idx_document_chunk_vector 
+                    ON document_chunk USING ivfflat (vector vector_cosine_ops) 
+                    WITH (lists = 200);
+                """))
+                
+                index_time = time.time() - index_start
+                total_time = time.time() - start_time
+                
+                log.info(f"Index recreation took {index_time:.2f} seconds")
+                log.info(f"Total time: {total_time:.2f}s (insert: {insert_time:.2f}s, index: {index_time:.2f}s)")
+                
         except Exception as e:
             self.session.rollback()
             log.exception(f"Error during insert: {e}")
