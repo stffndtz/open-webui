@@ -1,3 +1,4 @@
+import io
 import time
 from typing import Optional, List, Dict, Any
 import logging
@@ -61,6 +62,164 @@ def pgcrypto_encrypt(val, key):
 
 def pgcrypto_decrypt(col, key, outtype="text"):
     return func.cast(func.pgp_sym_decrypt(col, literal(key)), outtype)
+
+class VectorCopyInsert:
+    def __init__(self, session):
+        self.session = session
+    
+    def copy_bulk_insert(self, items, collection_name):
+        """
+        Ultra-fast bulk insert using PostgreSQL COPY for large vector tables
+        This bypasses SQLAlchemy and uses raw COPY for maximum performance
+        """
+        start_time = time.time()
+        log.info(f"Starting COPY bulk insert of {len(items)} items")
+        
+        # Step 1: Prepare data in memory (much faster than file I/O)
+        copy_buffer = io.StringIO()
+        
+        for item in items:
+            # Batch process vector adjustments
+            vector = self.adjust_vector_length(item["vector"])
+            
+            # Convert vector to PostgreSQL array format: {1.0,2.0,3.0}
+            vector_str = '{' + ','.join(f'{v:.6f}' for v in vector) + '}'
+            
+            # Handle metadata properly
+            if isinstance(item["metadata"], dict):
+                metadata_json = json.dumps(item["metadata"])
+            else:
+                metadata_json = str(item["metadata"])
+            
+            # Escape text for COPY (handle newlines, tabs, backslashes)
+            text_clean = item["text"].replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+            metadata_clean = metadata_json.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+            
+            # Write tab-separated values
+            copy_buffer.write(f"{item['id']}\t{vector_str}\t{collection_name}\t{text_clean}\t{metadata_clean}\n")
+        
+        prep_time = time.time() - start_time
+        log.info(f"Data preparation completed in {prep_time:.2f} seconds")
+        
+        # Step 2: Execute COPY command
+        copy_buffer.seek(0)
+        copy_start = time.time()
+        
+        # Get raw connection for COPY
+        raw_connection = self.session.connection().connection
+        
+        try:
+            with raw_connection.cursor() as cursor:
+                # Temporarily disable autocommit for better performance
+                old_autocommit = raw_connection.autocommit
+                raw_connection.autocommit = False
+                
+                log.info("Executing COPY command...")
+                cursor.copy_from(
+                    copy_buffer,
+                    'document_chunk',
+                    columns=('id', 'vector', 'collection_name', 'text', 'vmetadata'),
+                    sep='\t',
+                    null='\\N'  # Handle NULL values properly
+                )
+                
+                # Commit the transaction
+                raw_connection.commit()
+                raw_connection.autocommit = old_autocommit
+                
+                copy_time = time.time() - copy_start
+                total_time = time.time() - start_time
+                
+                log.info(f"COPY insert completed in {copy_time:.2f} seconds")
+                log.info(f"Total operation time: {total_time:.2f} seconds (prep: {prep_time:.2f}s, copy: {copy_time:.2f}s)")
+                log.info(f"Successfully inserted {len(items)} items using COPY")
+                
+                return True
+                
+        except Exception as e:
+            raw_connection.rollback()
+            log.error(f"COPY operation failed: {e}")
+            log.info("Falling back to regular INSERT method...")
+            return False
+        
+        finally:
+            copy_buffer.close()
+    
+    def copy_with_conflict_handling(self, items, collection_name):
+        """
+        COPY with conflict handling using temp table approach
+        Since COPY doesn't support ON CONFLICT directly
+        """
+        import uuid
+        temp_table = f"temp_bulk_insert_{uuid.uuid4().hex[:8]}"
+        
+        try:
+            # Create temporary table
+            self.session.execute(text(f"""
+                CREATE TEMPORARY TABLE {temp_table} (
+                    LIKE document_chunk INCLUDING DEFAULTS
+                );
+            """))
+            
+            # Use COPY to insert into temp table
+            if self.copy_bulk_insert_to_table(items, collection_name, temp_table):
+                # Move data with conflict resolution
+                self.session.execute(text(f"""
+                    INSERT INTO document_chunk 
+                    SELECT * FROM {temp_table}
+                    ON CONFLICT (id) DO NOTHING;
+                """))
+                self.session.commit()
+                log.info(f"Successfully inserted items with conflict handling")
+                return True
+            else:
+                return False
+                
+        except Exception as e:
+            self.session.rollback()
+            log.error(f"COPY with conflict handling failed: {e}")
+            return False
+        finally:
+            # Cleanup temp table
+            try:
+                self.session.execute(text(f"DROP TABLE IF EXISTS {temp_table};"))
+            except:
+                pass
+    
+    def copy_bulk_insert_to_table(self, items, collection_name, table_name):
+        """Helper method to COPY into a specific table"""
+        copy_buffer = io.StringIO()
+        
+        for item in items:
+            vector = self.adjust_vector_length(item["vector"])
+            vector_str = '{' + ','.join(f'{v:.6f}' for v in vector) + '}'
+            
+            metadata_json = json.dumps(item["metadata"]) if isinstance(item["metadata"], dict) else str(item["metadata"])
+            
+            text_clean = item["text"].replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+            metadata_clean = metadata_json.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+            
+            copy_buffer.write(f"{item['id']}\t{vector_str}\t{collection_name}\t{text_clean}\t{metadata_clean}\n")
+        
+        copy_buffer.seek(0)
+        
+        raw_connection = self.session.connection().connection
+        try:
+            with raw_connection.cursor() as cursor:
+                cursor.copy_from(
+                    copy_buffer,
+                    table_name,
+                    columns=('id', 'vector', 'collection_name', 'text', 'vmetadata'),
+                    sep='\t',
+                    null='\\N'
+                )
+                return True
+        except Exception as e:
+            log.error(f"COPY to {table_name} failed: {e}")
+            return False
+        finally:
+            copy_buffer.close()
+
 
 
 class DocumentChunk(Base):
@@ -263,44 +422,20 @@ class PgvectorClient(VectorDBBase):
                 start_time = time.time()
                 log.info("Dropping vector index for bulk insert")
                 self.session.execute(text("DROP INDEX IF EXISTS idx_document_chunk_vector;"))
-                # Prepare all data first
-                # log.info(f"Batch processing {len(items)} vectors")
-                adjusted_vectors = self.batch_adjust_vectors(items)
-                bulk_data = []
-                for i, item in enumerate(items):
-                    json_metadata = json.dumps(item["metadata"])
-                    
-                    bulk_data.append({
-                        "id": item["id"],
-                        "vector": adjusted_vectors[i],
-                        "collection_name": collection_name,
-                        "text": item["text"],
-                        "metadata_text": json_metadata,
-                    })
 
-                # Single bulk execute
-                log.info(f"Bulk inserting {len(bulk_data)} items")
+                # Use COPY method (handles everything internally)
+                log.info(f"Using COPY method for {len(items)} items")
                 insert_start = time.time()
-                self.session.execute(
-                    text(
-                        """
-                        INSERT INTO document_chunk
-                        (id, vector, collection_name, text, vmetadata)
-                        VALUES (
-                            :id, :vector, :collection_name, :text, :metadata_text
-                        )
-                        ON CONFLICT (id) DO NOTHING
-                        """
-                    ),
-                    bulk_data  # Pass the entire list
-                )
 
-                log.info(f"Committing {len(items)} items")
-                self.session.commit()
+                copy_inserter = VectorCopyInsert(self.session)
+                success = copy_inserter.copy_bulk_insert(items, collection_name)
+
                 insert_time = time.time() - insert_start
-                log.info(f"Bulk insert completed in {insert_time:.2f} seconds")
-                
-                # 4. Recreate vector index (one-time cost)
+                log.info(f"COPY insert completed in {insert_time:.2f} seconds")
+
+                # Note: No need for session.commit() - copy_bulk_insert handles it
+
+                # Recreate vector index
                 log.info("Recreating vector index")
                 index_start = time.time()
                 self.session.execute(text("""
@@ -308,10 +443,10 @@ class PgvectorClient(VectorDBBase):
                     ON document_chunk USING ivfflat (vector vector_cosine_ops) 
                     WITH (lists = 200);
                 """))
-                
+
                 index_time = time.time() - index_start
                 total_time = time.time() - start_time
-                
+
                 log.info(f"Index recreation took {index_time:.2f} seconds")
                 log.info(f"Total time: {total_time:.2f}s (insert: {insert_time:.2f}s, index: {index_time:.2f}s)")
                 
