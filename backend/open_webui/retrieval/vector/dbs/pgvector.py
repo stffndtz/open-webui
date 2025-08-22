@@ -240,24 +240,44 @@ class PgvectorClient(VectorDBBase):
                 log.info(
                     f"Called insert {len(items)} items into collection '{collection_name}'."
                 )
-                new_items = []
+                # new_items = []
                 for item in items:
-                    log.info(f"Inserting item {item['id']}")
+                    log.info(f"Executing {item['id']}")
                     vector = self.adjust_vector_length(item["vector"])
-                    new_chunk = DocumentChunk(
-                        id=item["id"],
-                        vector=vector,
-                        collection_name=collection_name,
-                        text=item["text"],
-                        vmetadata=stringify_metadata(item["metadata"]),
+                    self.session.execute(
+                        text(
+                            """
+                            INSERT INTO document_chunk
+                            (id, vector, collection_name, text, vmetadata)
+                            VALUES (
+                                :id, :vector, :collection_name, :text, :metadata_text
+                            )
+                            ON CONFLICT (id) DO NOTHING
+                        """
+                        ),
+                        {
+                            "id": item["id"],
+                            "vector": vector,
+                            "collection_name": collection_name,
+                            "text": item["text"],
+                            "metadata_text": stringify_metadata(item["metadata"]),
+                        },
                     )
-                    new_items.append(new_chunk)
-                log.info(f"Bulk saving {len(new_items)} items")
-                self.session.add_all(new_items)
-                log.info(f"Committing {len(new_items)} items")
+                    log.info(f"Saved {item['id']}")
+                    # new_chunk = DocumentChunk(
+                    #     id=item["id"],
+                    #     vector=vector,
+                    #     collection_name=collection_name,
+                    #     text=item["text"],
+                    #     vmetadata=stringify_metadata(item["metadata"]),
+                    # )
+                    # new_items.append(new_chunk)
+                # log.info(f"Bulk saving {len(new_items)} items")
+                # self.session.add_all(new_items)
+                log.info(f"Committing {len(items)} items")
                 self.session.commit()
                 log.info(
-                    f"Inserted {len(new_items)} items into collection '{collection_name}'."
+                    f"Inserted {len(items)} items into collection '{collection_name}'."
                 )
         except Exception as e:
             self.session.rollback()
