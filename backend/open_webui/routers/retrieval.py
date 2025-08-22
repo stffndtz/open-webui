@@ -1166,7 +1166,6 @@ def save_docs_to_vector_db(
                 log.info(f"Document with hash {metadata['hash']} already exists")
                 raise ValueError(ERROR_MESSAGES.DUPLICATE_CONTENT)
 
-    log.info(f"start splitting docs {len(docs)}")
     if split:
         if request.app.state.config.TEXT_SPLITTER in ["", "character"]:
             text_splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
