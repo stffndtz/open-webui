@@ -231,7 +231,7 @@
 			// For Teams apps, we need to use a different approach
 			// Instead of using Teams authentication API, we'll redirect to our OAuth flow
 			// This avoids the context restriction issue
-			const authUrl = `${WEBUI_BASE_URL}/oauth/microsoft/login?teams_context=true`;
+			const authUrl = `${WEBUI_BASE_URL}/oauth/microsoft/login`;
 
 			// Use Teams navigation to open the auth URL
 			try {

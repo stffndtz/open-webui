@@ -617,6 +617,7 @@
 			}
 
 			// Full authentication flow with iframe
+			console.log('Full authentication flow with iframe', `${WEBUI_BASE_URL}/oauth/microsoft/login`);
 			const authResult = await microsoftTeams.authentication.authenticate({
 				url: `${WEBUI_BASE_URL}/oauth/microsoft/login`,
 				width: 600,
