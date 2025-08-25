@@ -1169,7 +1169,7 @@ def save_docs_to_vector_db(
         log.info(f"starting to split docs {len(docs)}")
         docs = text_splitter.split_documents(docs)
 
-    log.info(f"docs: {len(docs)}")
+    # log.info(f"docs: {len(docs)}")
 
     if len(docs) == 0:
         raise ValueError(ERROR_MESSAGES.EMPTY_CONTENT)
@@ -1395,7 +1395,7 @@ def process_file(
                     Document(
                         page_content=doc.page_content,
                         metadata={
-                            **doc.metadata,
+                            # **doc.metadata,
                             "name": file.filename,
                             "created_by": file.user_id,
                             "file_id": file.id,
