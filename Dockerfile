@@ -24,10 +24,6 @@ ARG GID=0
 FROM --platform=$BUILDPLATFORM node:22-alpine3.20 AS build
 ARG BUILD_HASH
 
-# local optimization
-ENV GENERATE_SOURCEMAP=false
-ENV NODE_OPTIONS=--max-old-space-size=4096
-
 WORKDIR /app
 
 # to store git revision in build
