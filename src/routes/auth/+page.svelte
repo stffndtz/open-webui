@@ -98,6 +98,16 @@
 
 	// Check if we're in a Teams environment
 	const checkTeamsEnvironment = async () => {
+		console.log('Checking Teams environment');
+
+		// Try to initialize the SDK
+		await microsoftTeams.app.initialize();
+		console.log('Teams SDK initialized');
+
+		// Try to get context
+		const context = await microsoftTeams.app.getContext();
+		console.log('Teams context:', context);
+
 		try {
 			// Check if Teams SDK is available
 			if (typeof microsoftTeams === 'undefined') {
@@ -191,6 +201,8 @@
 		try {
 			// Check if we're in a Teams environment
 			const isTeams = await checkTeamsEnvironment();
+
+			console.log('isTeams:', isTeams);
 			if (!isTeams) {
 				console.log('Not in Teams environment, skipping Teams authentication');
 				return;
