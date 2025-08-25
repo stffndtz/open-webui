@@ -18,7 +18,7 @@ from sqlalchemy import (
     values,
 )
 from sqlalchemy.sql import true
-from sqlalchemy.pool import NullPool
+from sqlalchemy.pool import NullPool, QueuePool
 
 from sqlalchemy.orm import declarative_base, scoped_session, sessionmaker
 from sqlalchemy.dialects.postgresql import JSONB, array
@@ -26,6 +26,8 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.exc import NoSuchTableError
 
+
+from open_webui.retrieval.vector.utils import stringify_metadata
 from open_webui.retrieval.vector.main import (
     VectorDBBase,
     VectorItem,
@@ -37,6 +39,10 @@ from open_webui.config import (
     PGVECTOR_INITIALIZE_MAX_VECTOR_LENGTH,
     PGVECTOR_PGCRYPTO,
     PGVECTOR_PGCRYPTO_KEY,
+    PGVECTOR_POOL_SIZE,
+    PGVECTOR_POOL_MAX_OVERFLOW,
+    PGVECTOR_POOL_TIMEOUT,
+    PGVECTOR_POOL_RECYCLE,
 )
 
 from open_webui.env import SRC_LOG_LEVELS
@@ -73,16 +79,33 @@ class DocumentChunk(Base):
 
 class PgvectorClient(VectorDBBase):
     def __init__(self) -> None:
-
+        log.info(f"Initializing PgvectorClient with PGVECTOR_DB_URL: {PGVECTOR_DB_URL}")
         # if no pgvector uri, use the existing database connection
         if not PGVECTOR_DB_URL:
             from open_webui.internal.db import Session
 
             self.session = Session
         else:
-            engine = create_engine(
-                PGVECTOR_DB_URL, pool_pre_ping=True, poolclass=NullPool
-            )
+            if isinstance(PGVECTOR_POOL_SIZE, int):
+                if PGVECTOR_POOL_SIZE > 0:
+                    engine = create_engine(
+                        PGVECTOR_DB_URL,
+                        pool_size=PGVECTOR_POOL_SIZE,
+                        max_overflow=PGVECTOR_POOL_MAX_OVERFLOW,
+                        pool_timeout=PGVECTOR_POOL_TIMEOUT,
+                        pool_recycle=PGVECTOR_POOL_RECYCLE,
+                        pool_pre_ping=True,
+                        poolclass=QueuePool,
+                    )
+                else:
+                    log.info(f"Creating engine with NullPool")
+                    engine = create_engine(
+                        PGVECTOR_DB_URL, pool_pre_ping=True, poolclass=NullPool
+                    )
+            else:
+                log.info(f"Creating engine with QueuePool")
+                engine = create_engine(PGVECTOR_DB_URL, pool_pre_ping=True)
+
             SessionLocal = sessionmaker(
                 autocommit=False, autoflush=False, bind=engine, expire_on_commit=False
             )
@@ -90,11 +113,35 @@ class PgvectorClient(VectorDBBase):
 
         try:
             # Ensure the pgvector extension is available
-            self.session.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            # Use a conditional check to avoid permission issues on Azure PostgreSQL
+            self.session.execute(
+                text(
+                    """
+                DO $$
+                BEGIN
+                   IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+                      CREATE EXTENSION IF NOT EXISTS vector;
+                   END IF;
+                END $$;
+            """
+                )
+            )
 
             if PGVECTOR_PGCRYPTO:
                 # Ensure the pgcrypto extension is available for encryption
-                self.session.execute(text("CREATE EXTENSION IF NOT EXISTS pgcrypto;"))
+                # Use a conditional check to avoid permission issues on Azure PostgreSQL
+                self.session.execute(
+                    text(
+                        """
+                    DO $$
+                    BEGIN
+                       IF NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgcrypto') THEN
+                          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+                       END IF;
+                    END $$;
+                """
+                    )
+                )
 
                 if not PGVECTOR_PGCRYPTO_KEY:
                     raise ValueError(
@@ -117,12 +164,14 @@ class PgvectorClient(VectorDBBase):
                     "ON document_chunk USING ivfflat (vector vector_cosine_ops) WITH (lists = 100);"
                 )
             )
+            log.info(f"Creating index on vector column")
             self.session.execute(
                 text(
                     "CREATE INDEX IF NOT EXISTS idx_document_chunk_collection_name "
                     "ON document_chunk (collection_name);"
                 )
             )
+            log.info(f"Creating index on collection name column")
             self.session.commit()
             log.info("Initialization complete.")
         except Exception as e:
@@ -135,6 +184,7 @@ class PgvectorClient(VectorDBBase):
         Check if the VECTOR_LENGTH matches the existing vector column dimension in the database.
         Raises an exception if there is a mismatch.
         """
+        log.info(f"Checking vector length")
         metadata = MetaData()
         try:
             # Attempt to reflect the 'document_chunk' table
@@ -182,6 +232,8 @@ class PgvectorClient(VectorDBBase):
                 for item in items:
                     vector = self.adjust_vector_length(item["vector"])
                     # Use raw SQL for BYTEA/pgcrypto
+                    # Ensure metadata is converted to its JSON text representation
+                    json_metadata = json.dumps(item["metadata"])
                     self.session.execute(
                         text(
                             """
@@ -190,7 +242,7 @@ class PgvectorClient(VectorDBBase):
                             VALUES (
                                 :id, :vector, :collection_name,
                                 pgp_sym_encrypt(:text, :key),
-                                pgp_sym_encrypt(:metadata::text, :key)
+                                pgp_sym_encrypt(:metadata_text, :key)
                             )
                             ON CONFLICT (id) DO NOTHING
                         """
@@ -200,7 +252,7 @@ class PgvectorClient(VectorDBBase):
                             "vector": vector,
                             "collection_name": collection_name,
                             "text": item["text"],
-                            "metadata": json.dumps(item["metadata"]),
+                            "metadata_text": json_metadata,
                             "key": PGVECTOR_PGCRYPTO_KEY,
                         },
                     )
@@ -208,22 +260,37 @@ class PgvectorClient(VectorDBBase):
                 log.info(f"Encrypted & inserted {len(items)} into '{collection_name}'")
 
             else:
-                new_items = []
+                
+                # Prepare all data first
+                bulk_data = []
                 for item in items:
+                    json_metadata = json.dumps(item["metadata"])
                     vector = self.adjust_vector_length(item["vector"])
-                    new_chunk = DocumentChunk(
-                        id=item["id"],
-                        vector=vector,
-                        collection_name=collection_name,
-                        text=item["text"],
-                        vmetadata=item["metadata"],
-                    )
-                    new_items.append(new_chunk)
-                self.session.bulk_save_objects(new_items)
-                self.session.commit()
-                log.info(
-                    f"Inserted {len(new_items)} items into collection '{collection_name}'."
+                    bulk_data.append({
+                        "id": item["id"],
+                        "vector": vector,
+                        "collection_name": collection_name,
+                        "text": item["text"],
+                        "metadata_text": json_metadata,
+                    })
+
+                # Single bulk execute
+                self.session.execute(
+                    text(
+                        """
+                        INSERT INTO document_chunk
+                        (id, vector, collection_name, text, vmetadata)
+                        VALUES (
+                            :id, :vector, :collection_name, :text, :metadata_text
+                        )
+                        ON CONFLICT (id) DO NOTHING
+                        """
+                    ),
+                    bulk_data  # Pass the entire list
                 )
+
+                self.session.commit()
+                log.info(f"Inserted {len(items)} items into collection '{collection_name}'.")
         except Exception as e:
             self.session.rollback()
             log.exception(f"Error during insert: {e}")
@@ -234,6 +301,7 @@ class PgvectorClient(VectorDBBase):
             if PGVECTOR_PGCRYPTO:
                 for item in items:
                     vector = self.adjust_vector_length(item["vector"])
+                    json_metadata = json.dumps(item["metadata"])
                     self.session.execute(
                         text(
                             """
@@ -242,7 +310,7 @@ class PgvectorClient(VectorDBBase):
                             VALUES (
                                 :id, :vector, :collection_name,
                                 pgp_sym_encrypt(:text, :key),
-                                pgp_sym_encrypt(:metadata::text, :key)
+                                pgp_sym_encrypt(:metadata_text, :key)
                             )
                             ON CONFLICT (id) DO UPDATE SET
                               vector = EXCLUDED.vector,
@@ -256,7 +324,7 @@ class PgvectorClient(VectorDBBase):
                             "vector": vector,
                             "collection_name": collection_name,
                             "text": item["text"],
-                            "metadata": json.dumps(item["metadata"]),
+                            "metadata_text": json_metadata,
                             "key": PGVECTOR_PGCRYPTO_KEY,
                         },
                     )
@@ -273,7 +341,7 @@ class PgvectorClient(VectorDBBase):
                     if existing:
                         existing.vector = vector
                         existing.text = item["text"]
-                        existing.vmetadata = item["metadata"]
+                        existing.vmetadata = stringify_metadata(item["metadata"])
                         existing.collection_name = (
                             collection_name  # Update collection_name if necessary
                         )
@@ -283,7 +351,7 @@ class PgvectorClient(VectorDBBase):
                             vector=vector,
                             collection_name=collection_name,
                             text=item["text"],
-                            vmetadata=item["metadata"],
+                            vmetadata=stringify_metadata(item["metadata"]),
                         )
                         self.session.add(new_chunk)
                 self.session.commit()
@@ -397,10 +465,12 @@ class PgvectorClient(VectorDBBase):
                 documents[qid].append(row.text)
                 metadatas[qid].append(row.vmetadata)
 
+            self.session.rollback()  # read-only transaction
             return SearchResult(
                 ids=ids, distances=distances, documents=documents, metadatas=metadatas
             )
         except Exception as e:
+            self.session.rollback()
             log.exception(f"Error during search: {e}")
             return None
 
@@ -453,12 +523,14 @@ class PgvectorClient(VectorDBBase):
             documents = [[result.text for result in results]]
             metadatas = [[result.vmetadata for result in results]]
 
+            self.session.rollback()  # read-only transaction
             return GetResult(
                 ids=ids,
                 documents=documents,
                 metadatas=metadatas,
             )
         except Exception as e:
+            self.session.rollback()
             log.exception(f"Error during query: {e}")
             return None
 
@@ -499,8 +571,10 @@ class PgvectorClient(VectorDBBase):
                 documents = [[result.text for result in results]]
                 metadatas = [[result.vmetadata for result in results]]
 
+            self.session.rollback()  # read-only transaction
             return GetResult(ids=ids, documents=documents, metadatas=metadatas)
         except Exception as e:
+            self.session.rollback()
             log.exception(f"Error during get: {e}")
             return None
 
@@ -568,8 +642,10 @@ class PgvectorClient(VectorDBBase):
                 .first()
                 is not None
             )
+            self.session.rollback()  # read-only transaction
             return exists
         except Exception as e:
+            self.session.rollback()
             log.exception(f"Error checking collection existence: {e}")
             return False
 

@@ -8,17 +8,26 @@ import { toast } from 'svelte-sonner';
 export const getModels = async (
 	token: string = '',
 	connections: object | null = null,
-	base: boolean = false
+	base: boolean = false,
+	refresh: boolean = false
 ) => {
+	const searchParams = new URLSearchParams();
+	if (refresh) {
+		searchParams.append('refresh', 'true');
+	}
+
 	let error = null;
-	const res = await fetch(`${WEBUI_BASE_URL}/api/models${base ? '/base' : ''}`, {
-		method: 'GET',
-		headers: {
-			Accept: 'application/json',
-			'Content-Type': 'application/json',
-			...(token && { authorization: `Bearer ${token}` })
+	const res = await fetch(
+		`${WEBUI_BASE_URL}/api/models${base ? '/base' : ''}?${searchParams.toString()}`,
+		{
+			method: 'GET',
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/json',
+				...(token && { authorization: `Bearer ${token}` })
+			}
 		}
-	})
+	)
 		.then(async (res) => {
 			if (!res.ok) throw await res.json();
 			return res.json();
@@ -351,7 +360,7 @@ export const getToolServersData = async (i18n, servers: object[]) => {
 							: `${server?.url}${(server?.path ?? '').startsWith('/') ? '' : '/'}${server?.path}`
 					).catch((err) => {
 						toast.error(
-							i18n.t(`Failed to connect to {{URL}} OpenAPI tool server`, {
+							$i18n.t(`Failed to connect to {{URL}} OpenAPI tool server`, {
 								URL: (server?.path ?? '').includes('://')
 									? server?.path
 									: `${server?.url}${(server?.path ?? '').startsWith('/') ? '' : '/'}${server?.path}`
@@ -471,7 +480,14 @@ export const executeToolServer = async (
 			throw new Error(`HTTP error! Status: ${res.status}. Message: ${resText}`);
 		}
 
-		return await res.json();
+		let responseData;
+		try {
+			responseData = await res.json();
+		} catch (err) {
+			responseData = await res.text();
+		}
+
+		return responseData;
 	} catch (err: any) {
 		error = err.message;
 		console.error('API Request Error:', error);
@@ -809,7 +825,7 @@ export const generateQueries = async (
 	model: string,
 	messages: object[],
 	prompt: string,
-	type?: string = 'web_search'
+	type: string = 'web_search'
 ) => {
 	let error = null;
 
@@ -1587,6 +1603,7 @@ export interface ModelConfig {
 }
 
 export interface ModelMeta {
+	toolIds: never[];
 	description?: string;
 	capabilities?: object;
 	profile_image_url?: string;
