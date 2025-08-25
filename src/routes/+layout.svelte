@@ -769,6 +769,9 @@
 					});
 
 					if (sessionUser) {
+						// Save Session User to Store
+						$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+
 						await user.set(sessionUser);
 						await config.set(await getBackendConfig());
 					} else {
