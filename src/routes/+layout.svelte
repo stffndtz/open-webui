@@ -572,6 +572,7 @@
 		try {
 			// Initialize Teams SDK
 			await microsoftTeams.app.initialize();
+			console.log('Teams SDK initialized');
 
 			// Check if we're in Teams environment
 			const context = await microsoftTeams.app.getContext();
@@ -579,6 +580,8 @@
 
 			// Check if user is already authenticated in Teams
 			const userInfo = await microsoftTeams.authentication.getAuthToken();
+			console.log('Teams user info:', userInfo);
+
 			if (userInfo) {
 				console.log('User already authenticated in Teams, attempting silent auth');
 
@@ -780,6 +783,7 @@
 						await goto(`/auth?redirect=${encodedUrl}`);
 					}
 				} else {
+					console.log('No token found, checking Teams environment');
 					// Check if we're in Teams environment and handle authentication
 					try {
 						await microsoftTeams.app.initialize();
