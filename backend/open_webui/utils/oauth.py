@@ -578,10 +578,13 @@ class OAuthManager:
         try:
             # Get Teams user info from request body
             body = await request.json()
+            print(f"Teams silent auth body: {body}")
             teams_user_id = body.get("teams_user_id")
             teams_user_email = body.get("teams_user_email")
             teams_user_name = body.get("teams_user_name")
-
+            print(f"Teams user ID: {teams_user_id}")
+            print(f"Teams user email: {teams_user_email}")
+            print(f"Teams user name: {teams_user_name}")
             if not teams_user_id:
                 raise HTTPException(400, detail="Teams user ID is required")
 

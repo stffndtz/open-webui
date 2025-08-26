@@ -477,7 +477,7 @@
 
 	// Microsoft Teams Authentication
 	const handleTeamsAuthentication = async () => {
-		window.teamsjs = microsoftTeams;
+		// window.teamsjs = microsoftTeams;
 		try {
 			// Initialize Teams SDK
 			await microsoftTeams.app.initialize();
@@ -490,7 +490,7 @@
 			// Check if user is already authenticated in Teams
 			const userInfo = await microsoftTeams.authentication.getAuthToken();
 			console.log('Teams user info:', userInfo);
-
+			
 			if (userInfo) {
 				console.log('User already authenticated in Teams, attempting silent auth');
 
@@ -547,7 +547,7 @@
 					$socket?.emit('user-join', { auth: { token: sessionUser.token } });
 					await user.set(sessionUser);
 					await config.set(await getBackendConfig());
-
+					
 					// Close the authentication dialog
 					microsoftTeams.authentication.notifySuccess(authResult);
 				}
