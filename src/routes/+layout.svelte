@@ -457,98 +457,6 @@
 
 	const TOKEN_EXPIRY_BUFFER = 60; // seconds
 
-	// Check if we're in a Teams environment
-	const checkTeamsEnvironment = async () => {
-		try {
-			// Check if Teams SDK is available
-			if (typeof microsoftTeams === 'undefined') {
-				return false;
-			}
-
-			// Try to initialize the SDK
-			await microsoftTeams.app.initialize();
-
-			// Try to get context
-			const context = await microsoftTeams.app.getContext();
-
-			// Check if we're in Teams (not standalone)
-			return (
-				context &&
-				context.app &&
-				context.app.host &&
-				(context.app.host.name === 'teams' || context.app.host.name === 'teamsModern')
-			);
-		} catch (error) {
-			console.log('Not in Teams environment:', error);
-			return false;
-		}
-	};
-
-	// Get Teams user info if available
-	const getTeamsUserInfo = async () => {
-		try {
-			// Try to get user info from context first (this is always available)
-			const context = await microsoftTeams.app.getContext();
-			if (context && context.user) {
-				return {
-					id: context.user.id,
-					email: context.user.email,
-					name: context.user.displayName
-				};
-			}
-
-			return null;
-		} catch (error) {
-			console.log('Could not get Teams user info:', error);
-			return null;
-		}
-	};
-
-	// Attempt silent authentication using Teams context
-	const attemptSilentAuth = async (userInfo) => {
-		try {
-			// For Teams apps, we can use the user context directly
-			// This avoids the authentication context issue
-			if (userInfo && userInfo.id) {
-				// Try to authenticate using the Teams user ID
-				const response = await fetch(`${WEBUI_BASE_URL}/oauth/microsoft/silent`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						teams_user_id: userInfo.id,
-						teams_user_email: userInfo.email,
-						teams_user_name: userInfo.name
-					})
-				});
-
-				if (response.ok) {
-					const authData = await response.json();
-					if (authData.token) {
-						localStorage.token = authData.token;
-						const sessionUser = await getSessionUser(authData.token).catch((error) => {
-							console.log('Silent auth failed, falling back to full auth:', error);
-							return null;
-						});
-
-						if (sessionUser) {
-							$socket?.emit('user-join', { auth: { token: sessionUser.token } });
-							await user.set(sessionUser);
-							await config.set(await getBackendConfig());
-							return true; // Success
-						}
-					}
-				}
-			}
-
-			return false; // Silent auth failed
-		} catch (error) {
-			console.log('Silent authentication failed, proceeding with full auth:', error);
-			return false;
-		}
-	};
-
 	const checkTokenExpiry = async () => {
 		const exp = $user?.expires_at; // token expiry time in unix timestamp
 		const now = Math.floor(Date.now() / 1000); // current time in unix timestamp
@@ -569,6 +477,7 @@
 
 	// Microsoft Teams Authentication
 	const handleTeamsAuthentication = async () => {
+		window.teamsjs = microsoftTeams;
 		try {
 			// Initialize Teams SDK
 			await microsoftTeams.app.initialize();
@@ -592,7 +501,7 @@
 
 					// Try to authenticate with the Teams token
 					const authResult = await microsoftTeams.authentication.authenticate({
-						url: `${WEBUI_BASE_URL}/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
+						url: `https://ai.nordholding.de/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
 						width: 0, // Hidden window for silent auth
 						height: 0
 					});
