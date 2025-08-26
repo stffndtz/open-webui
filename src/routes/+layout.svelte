@@ -553,8 +553,8 @@
 				}
 			}
 		} catch (error) {
-			console.error('Teams authentication failed:', error);
-			toast.error('Teams authentication failed. Please try again.');
+			console.error('Layout Teams authentication failed:', error);
+			toast.error('Layout Teams authentication failed. Please try again.');
 			// Notify Teams that authentication failed
 			microsoftTeams.authentication.notifyFailure('Authentication failed');
 		}

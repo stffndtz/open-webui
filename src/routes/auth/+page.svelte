@@ -306,7 +306,7 @@
 			const redirectPath = querystringValue('redirect') || '/';
 			goto(redirectPath);
 		}
-		await checkOauthCallback();
+		
 
 		// Check if we're in Teams environment and handle authentication
 		try {
@@ -320,6 +320,8 @@
 		} catch (error) {
 			console.log('Not in Teams environment or Teams SDK not available:', error);
 		}
+
+		await checkOauthCallback();		
 
 		loaded = true;
 		setLogoImage();
