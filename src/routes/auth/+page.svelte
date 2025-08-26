@@ -311,11 +311,11 @@
 		// Check if we're in Teams environment and handle authentication
 		try {
 			await microsoftTeams.app.initialize();
-			console.log('Teams SDK initialized successfully');
 
-			// If we're in Teams and no token, try Teams authentication
-			if (!localStorage.token) {
-				await handleTeamsAuthentication();
+			try {
+				microsoftTeams.authentication.notifySuccess('Success - close now please');
+			} catch (error) {
+				console.log('Error notifying Teams:', error);
 			}
 		} catch (error) {
 			console.log('Not in Teams environment or Teams SDK not available:', error);

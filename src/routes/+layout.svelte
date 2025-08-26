@@ -693,8 +693,6 @@
 						await goto(`/auth?redirect=${encodedUrl}`);
 					}
 				} else {
-					console.log('No token found, checking Teams environment');
-					// Check if we're in Teams environment and handle authentication
 					try {
 						await microsoftTeams.app.initialize();
 						console.log('Teams SDK initialized successfully');
