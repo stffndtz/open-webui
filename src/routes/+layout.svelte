@@ -476,89 +476,89 @@
 	};
 
 	// Microsoft Teams Authentication
-	const handleTeamsAuthentication = async () => {
-		// window.teamsjs = microsoftTeams;
-		try {
-			// Initialize Teams SDK
-			await microsoftTeams.app.initialize();
-			console.log('Teams SDK initialized');
+	// const handleTeamsAuthentication = async () => {
+	// 	// window.teamsjs = microsoftTeams;
+	// 	try {
+	// 		// Initialize Teams SDK
+	// 		await microsoftTeams.app.initialize();
+	// 		console.log('Teams SDK initialized');
 
-			// Check if we're in Teams environment
-			const context = await microsoftTeams.app.getContext();
-			console.log('Teams context:', context);
+	// 		// Check if we're in Teams environment
+	// 		const context = await microsoftTeams.app.getContext();
+	// 		console.log('Teams context:', context);
 
-			// Check if user is already authenticated in Teams
-			const userInfo = await microsoftTeams.authentication.getAuthToken();
-			console.log('Teams user info:', userInfo);
+	// 		// Check if user is already authenticated in Teams
+	// 		const userInfo = await microsoftTeams.authentication.getAuthToken();
+	// 		console.log('Teams user info:', userInfo);
 			
-			// if (userInfo) {
-			// 	console.log('User already authenticated in Teams, attempting silent auth');
+	// 		// if (userInfo) {
+	// 		// 	console.log('User already authenticated in Teams, attempting silent auth');
 
-			// 	// Try to get user info directly from Teams
-			// 	try {
-			// 		const teamsUser = await microsoftTeams.app.getContext();
-			// 		console.log('Teams user info:', teamsUser);
+	// 		// 	// Try to get user info directly from Teams
+	// 		// 	try {
+	// 		// 		const teamsUser = await microsoftTeams.app.getContext();
+	// 		// 		console.log('Teams user info:', teamsUser);
 
-			// 		// Try to authenticate with the Teams token
-			// 		const authResult = await microsoftTeams.authentication.authenticate({
-			// 			url: `https://ai.nordholding.de/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
-			// 			width: 0, // Hidden window for silent auth
-			// 			height: 0
-			// 		});
+	// 		// 		// Try to authenticate with the Teams token
+	// 		// 		const authResult = await microsoftTeams.authentication.authenticate({
+	// 		// 			url: `https://ai.nordholding.de/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
+	// 		// 			width: 0, // Hidden window for silent auth
+	// 		// 			height: 0
+	// 		// 		});
 
-			// 		if (authResult) {
-			// 			localStorage.token = authResult;
-			// 			const sessionUser = await getSessionUser(authResult).catch((error) => {
-			// 				console.log('Silent auth failed, falling back to full auth:', error);
-			// 				return null;
-			// 			});
+	// 		// 		if (authResult) {
+	// 		// 			localStorage.token = authResult;
+	// 		// 			const sessionUser = await getSessionUser(authResult).catch((error) => {
+	// 		// 				console.log('Silent auth failed, falling back to full auth:', error);
+	// 		// 				return null;
+	// 		// 			});
 
-			// 			if (sessionUser) {
-			// 				$socket?.emit('user-join', { auth: { token: sessionUser.token } });
-			// 				await user.set(sessionUser);
-			// 				await config.set(await getBackendConfig());
-			// 				return; // Success, exit early
-			// 			}
-			// 		}
-			// 	} catch (silentError) {
-			// 		console.log('Silent authentication failed, proceeding with full auth:', silentError);
-			// 	}
-			// }
+	// 		// 			if (sessionUser) {
+	// 		// 				$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+	// 		// 				await user.set(sessionUser);
+	// 		// 				await config.set(await getBackendConfig());
+	// 		// 				return; // Success, exit early
+	// 		// 			}
+	// 		// 		}
+	// 		// 	} catch (silentError) {
+	// 		// 		console.log('Silent authentication failed, proceeding with full auth:', silentError);
+	// 		// 	}
+	// 		// }
 
-			// Full authentication flow with iframe
-			console.log('Full authentication flow with iframe', `${WEBUI_BASE_URL}/oauth/microsoft/login`);
-			const authResult = await microsoftTeams.authentication.authenticate({
-				url: `https://ai.nordholding.de/oauth/microsoft/login`,
-				width: 600,
-				height: 535
-			});
+	// 		// Full authentication flow with iframe
+	// 		console.log('Full authentication flow with iframe', `${WEBUI_BASE_URL}/oauth/microsoft/login`);
+	// 		const authResult = await microsoftTeams.authentication.authenticate({
+	// 			url: `https://ai.nordholding.de/oauth/microsoft/login`,
+	// 			width: 600,
+	// 			height: 535
+	// 		});
 
-			console.log('Teams authentication result:', authResult);
+	// 		console.log('Teams authentication result:', authResult);
 
-			// The result should contain the token
-			if (authResult) {
-				localStorage.token = authResult;
-				const sessionUser = await getSessionUser(authResult).catch((error) => {
-					toast.error(`${error}`);
-					return null;
-				});
+	// 		// The result should contain the token
+	// 		if (authResult) {
+	// 			localStorage.token = authResult;
+	// 			const sessionUser = await getSessionUser(authResult).catch((error) => {
+	// 				toast.error(`${error}`);
+	// 				return null;
+	// 			});
 
-				if (sessionUser) {
-					$socket?.emit('user-join', { auth: { token: sessionUser.token } });
-					await user.set(sessionUser);
-					await config.set(await getBackendConfig());
+	// 			if (sessionUser) {
+	// 				$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+	// 				await user.set(sessionUser);
+	// 				await config.set(await getBackendConfig());
 					
-					// Close the authentication dialog
-					microsoftTeams.authentication.notifySuccess(authResult);
-				}
-			}
-		} catch (error) {
-			console.error('Layout Teams authentication failed:', error);
-			toast.error('Layout Teams authentication failed. Please try again.');
-			// Notify Teams that authentication failed
-			microsoftTeams.authentication.notifyFailure('Authentication failed');
-		}
-	};
+	// 				// Close the authentication dialog
+	// 				microsoftTeams.authentication.notifySuccess(authResult);
+	// 			}
+	// 		}
+	// 	} catch (error) {
+	// 		console.error('Layout Teams authentication failed:', error);
+	// 		toast.error('Layout Teams authentication failed. Please try again.');
+	// 		// Notify Teams that authentication failed
+	// 		microsoftTeams.authentication.notifyFailure('Authentication failed');
+	// 	}
+	// };
 
 	onMount(async () => {
 		if (typeof window !== 'undefined' && window.applyTheme) {
@@ -753,10 +753,9 @@
 			loaded = true;
 		}
 
-		// Cleanup function
-		onDestroy(() => {
+		return () => {
 			window.removeEventListener('resize', onResize);
-		});
+		};
 	});
 </script>
 
