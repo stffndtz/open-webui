@@ -491,39 +491,39 @@
 			const userInfo = await microsoftTeams.authentication.getAuthToken();
 			console.log('Teams user info:', userInfo);
 			
-			if (userInfo) {
-				console.log('User already authenticated in Teams, attempting silent auth');
+			// if (userInfo) {
+			// 	console.log('User already authenticated in Teams, attempting silent auth');
 
-				// Try to get user info directly from Teams
-				try {
-					const teamsUser = await microsoftTeams.app.getContext();
-					console.log('Teams user info:', teamsUser);
+			// 	// Try to get user info directly from Teams
+			// 	try {
+			// 		const teamsUser = await microsoftTeams.app.getContext();
+			// 		console.log('Teams user info:', teamsUser);
 
-					// Try to authenticate with the Teams token
-					const authResult = await microsoftTeams.authentication.authenticate({
-						url: `https://ai.nordholding.de/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
-						width: 0, // Hidden window for silent auth
-						height: 0
-					});
+			// 		// Try to authenticate with the Teams token
+			// 		const authResult = await microsoftTeams.authentication.authenticate({
+			// 			url: `https://ai.nordholding.de/oauth/microsoft/silent?teams_token=${encodeURIComponent(userInfo)}`,
+			// 			width: 0, // Hidden window for silent auth
+			// 			height: 0
+			// 		});
 
-					if (authResult) {
-						localStorage.token = authResult;
-						const sessionUser = await getSessionUser(authResult).catch((error) => {
-							console.log('Silent auth failed, falling back to full auth:', error);
-							return null;
-						});
+			// 		if (authResult) {
+			// 			localStorage.token = authResult;
+			// 			const sessionUser = await getSessionUser(authResult).catch((error) => {
+			// 				console.log('Silent auth failed, falling back to full auth:', error);
+			// 				return null;
+			// 			});
 
-						if (sessionUser) {
-							$socket?.emit('user-join', { auth: { token: sessionUser.token } });
-							await user.set(sessionUser);
-							await config.set(await getBackendConfig());
-							return; // Success, exit early
-						}
-					}
-				} catch (silentError) {
-					console.log('Silent authentication failed, proceeding with full auth:', silentError);
-				}
-			}
+			// 			if (sessionUser) {
+			// 				$socket?.emit('user-join', { auth: { token: sessionUser.token } });
+			// 				await user.set(sessionUser);
+			// 				await config.set(await getBackendConfig());
+			// 				return; // Success, exit early
+			// 			}
+			// 		}
+			// 	} catch (silentError) {
+			// 		console.log('Silent authentication failed, proceeding with full auth:', silentError);
+			// 	}
+			// }
 
 			// Full authentication flow with iframe
 			console.log('Full authentication flow with iframe', `${WEBUI_BASE_URL}/oauth/microsoft/login`);
@@ -674,13 +674,16 @@
 				const currentUrl = `${window.location.pathname}${window.location.search}`;
 				const encodedUrl = encodeURIComponent(currentUrl);
 
+
+				console.log('Layout: Token:', localStorage.token);
+				console.log('Layout: Page URL:', $page.url.pathname);
 				if (localStorage.token) {
 					// Get Session User Info
 					const sessionUser = await getSessionUser(localStorage.token).catch((error) => {
 						toast.error(`${error}`);
 						return null;
 					});
-
+					console.log('Layout: Session user:', sessionUser);
 					if (sessionUser) {
 						// Save Session User to Store
 						$socket?.emit('user-join', { auth: { token: sessionUser.token } });
@@ -693,22 +696,23 @@
 						await goto(`/auth?redirect=${encodedUrl}`);
 					}
 				} else {
+					console.log('Layout: No session user, redirecting to /auth');
 					try {
 						await microsoftTeams.app.initialize();
 						console.log('Teams SDK initialized successfully');
 
 						// If we're in Teams and no token, try Teams authentication
-						if (!localStorage.token) {
-							await handleTeamsAuthentication();
-						}
+						// if (!localStorage.token) {
+						// 	await handleTeamsAuthentication();
+						// }
 					} catch (error) {
 						console.log('Not in Teams environment or Teams SDK not available:', error);
-
-						// Don't redirect if we're already on the auth page
-						// Needed because we pass in tokens from OAuth logins via URL fragments
-						if ($page.url.pathname !== '/auth') {
-							await goto(`/auth?redirect=${encodedUrl}`);
-						}
+					}
+					console.log('Layout: Redirecting to /auth');
+					// Don't redirect if we're already on the auth page
+					// Needed because we pass in tokens from OAuth logins via URL fragments
+					if ($page.url.pathname !== '/auth') {
+						await goto(`/auth?redirect=${encodedUrl}`);
 					}
 				}
 			}

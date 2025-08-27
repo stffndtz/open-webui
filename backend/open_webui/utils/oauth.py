@@ -340,6 +340,9 @@ class OAuthManager:
             return "/user.png"
 
     async def handle_login(self, request, provider):
+        print(f"Handle login for provider: {provider}")
+        print(f"Request: {request}")
+        print(f"OAUTH_PROVIDER: {provider}")
         if provider not in OAUTH_PROVIDERS:
             raise HTTPException(404)
         # If the provider has a custom redirect URL, use that, otherwise automatically generate one
@@ -527,7 +530,7 @@ class OAuthManager:
             data={"id": user.id},
             expires_delta=parse_duration(auth_manager_config.JWT_EXPIRES_IN),
         )
-
+        print(f"JWT token: {jwt_token}")    
         if auth_manager_config.ENABLE_OAUTH_GROUP_MANAGEMENT and user.role != "admin":
             self.update_user_groups(
                 user=user,
@@ -539,7 +542,8 @@ class OAuthManager:
         if redirect_base_url.endswith("/"):
             redirect_base_url = redirect_base_url[:-1]
         redirect_url = f"{redirect_base_url}/auth"
-
+        print(f"Redirect URL: {redirect_url}")
+        print(f"Response headers: {response.headers}")
         response = RedirectResponse(url=redirect_url, headers=response.headers)
 
         # Set the cookie token
