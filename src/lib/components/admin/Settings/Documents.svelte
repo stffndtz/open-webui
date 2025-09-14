@@ -329,6 +329,7 @@
 									<option value="datalab_marker">{$i18n.t('Datalab Marker API')}</option>
 									<option value="document_intelligence">{$i18n.t('Document Intelligence')}</option>
 									<option value="mistral_ocr">{$i18n.t('Mistral OCR')}</option>
+									<option value="azure_mistral_ocr">{$i18n.t('Azure Mistral OCR')}</option>
 								</select>
 							</div>
 						</div>
@@ -651,6 +652,23 @@
 								<SensitiveInput
 									placeholder={$i18n.t('Enter Mistral API Key')}
 									bind:value={RAGConfig.MISTRAL_OCR_API_KEY}
+								/>
+							</div>
+						{:else if RAGConfig.CONTENT_EXTRACTION_ENGINE === 'azure_mistral_ocr'}
+							<div class="my-0.5 flex flex-col gap-2 pr-2">
+								<input
+									class="flex-1 w-full text-sm bg-transparent outline-hidden"
+									placeholder={$i18n.t('Enter Azure AI Foundry Endpoint URL')}
+									bind:value={RAGConfig.AZURE_MISTRAL_OCR_ENDPOINT_URL}
+								/>
+								<input
+									class="flex-1 w-full text-sm bg-transparent outline-hidden"
+									placeholder={$i18n.t('Enter Model Name (e.g., mistral-document-ai-2505)')}
+									bind:value={RAGConfig.AZURE_MISTRAL_OCR_MODEL_NAME}
+								/>
+								<SensitiveInput
+									placeholder={$i18n.t('Enter Azure API Key')}
+									bind:value={RAGConfig.AZURE_MISTRAL_OCR_API_KEY}
 								/>
 							</div>
 						{/if}
