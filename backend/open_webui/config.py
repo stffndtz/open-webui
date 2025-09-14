@@ -1578,7 +1578,7 @@ FOLLOW_UP_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
 DEFAULT_FOLLOW_UP_GENERATION_PROMPT_TEMPLATE = """### Task:
 Suggest 3-5 relevant follow-up questions or prompts in the chat's primary language that the user might naturally ask next in this conversation as a **user**, based on the chat history, to help continue or deepen the discussion.
 ### Guidelines:
-- Write all follow-up questions from the user’s point of view, directed to the assistant.
+- Write all follow-up questions from the user's point of view, directed to the assistant.
 - Make questions concise, clear, and directly related to the discussed topic(s).
 - Only suggest follow-ups that make sense given the chat content and do not repeat what was already covered.
 - If the conversation is very short or not specific, suggest more general (but relevant) follow-ups the user might ask.
@@ -2276,6 +2276,25 @@ MISTRAL_OCR_API_KEY = PersistentConfig(
     "MISTRAL_OCR_API_KEY",
     "rag.mistral_ocr_api_key",
     os.getenv("MISTRAL_OCR_API_KEY", ""),
+)
+
+# Azure Mistral OCR configuration
+AZURE_MISTRAL_OCR_API_KEY = PersistentConfig(
+    "AZURE_MISTRAL_OCR_API_KEY",
+    "rag.azure_mistral_ocr_api_key",
+    os.getenv("AZURE_MISTRAL_OCR_API_KEY", ""),
+)
+
+AZURE_MISTRAL_OCR_ENDPOINT_URL = PersistentConfig(
+    "AZURE_MISTRAL_OCR_ENDPOINT_URL",
+    "rag.azure_mistral_ocr_endpoint_url",
+    os.getenv("AZURE_MISTRAL_OCR_ENDPOINT_URL", ""),
+)
+
+AZURE_MISTRAL_OCR_MODEL_NAME = PersistentConfig(
+    "AZURE_MISTRAL_OCR_MODEL_NAME",
+    "rag.azure_mistral_ocr_model_name",
+    os.getenv("AZURE_MISTRAL_OCR_MODEL_NAME", "mistral-document-ai-2505"),
 )
 
 BYPASS_EMBEDDING_AND_RETRIEVAL = PersistentConfig(
