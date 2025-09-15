@@ -2467,6 +2467,41 @@ RAG_EXTERNAL_RERANKER_API_KEY = PersistentConfig(
     os.environ.get("RAG_EXTERNAL_RERANKER_API_KEY", ""),
 )
 
+# OpenAI Reranker configuration
+RAG_OPENAI_RERANKER_API_KEY = PersistentConfig(
+    "RAG_OPENAI_RERANKER_API_KEY",
+    "rag.openai_reranker_api_key",
+    os.getenv("RAG_OPENAI_RERANKER_API_KEY", ""),
+)
+
+RAG_OPENAI_RERANKER_MODEL = PersistentConfig(
+    "RAG_OPENAI_RERANKER_MODEL",
+    "rag.openai_reranker_model",
+    os.getenv("RAG_OPENAI_RERANKER_MODEL", "gpt-4-1106-preview"),
+)
+
+RAG_OPENAI_RERANKER_TEMPERATURE = PersistentConfig(
+    "RAG_OPENAI_RERANKER_TEMPERATURE",
+    "rag.openai_reranker_temperature",
+    os.getenv("RAG_OPENAI_RERANKER_TEMPERATURE", "0.0"),
+)
+
+RAG_OPENAI_RERANKER_USE_RANKGPT = PersistentConfig(
+    "RAG_OPENAI_RERANKER_USE_RANKGPT",
+    "rag.openai_reranker_use_rankgpt",
+    os.getenv("RAG_OPENAI_RERANKER_USE_RANKGPT", "True").lower() == "true",
+)
+RAG_OPENAI_RERANKER_MAX_LENGTH = PersistentConfig(
+    "RAG_OPENAI_RERANKER_MAX_LENGTH",
+    "rag.openai_reranker_max_length",
+    os.getenv("RAG_OPENAI_RERANKER_MAX_LENGTH", "300"),
+)
+
+RAG_OPENAI_RERANKER_URL = PersistentConfig(
+    "RAG_OPENAI_RERANKER_URL",
+    "rag.openai_reranker_url",
+    os.getenv("RAG_OPENAI_RERANKER_URL", ""),
+)
 
 RAG_TEXT_SPLITTER = PersistentConfig(
     "RAG_TEXT_SPLITTER",
