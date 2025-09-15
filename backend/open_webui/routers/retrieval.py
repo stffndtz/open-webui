@@ -143,6 +143,9 @@ def get_rf(
     external_reranker_url: str = "",
     external_reranker_api_key: str = "",
     auto_update: bool = False,
+    openai_reranker_api_key: str = "",
+    openai_reranker_url: str = "",
+    openai_reranker_model: str = "",
 ):
     rf = None
     if reranking_model:
@@ -171,6 +174,18 @@ def get_rf(
                 except Exception as e:
                     log.error(f"ExternalReranking: {e}")
                     raise Exception(ERROR_MESSAGES.DEFAULT(e))
+            if engine == "openai":
+                try:
+                    from open_webui.retrieval.models.openai_reranker import OpenAIReranker
+
+                    rf = OpenAIReranker(
+                        api_key=openai_reranker_api_key,
+                        base_url=openai_reranker_url,
+                        model=openai_reranker_model
+                    )
+                except Exception as e:
+                    log.error(f"OpenAIReranking: {e}")
+                    raise Exception(ERROR_MESSAGES.DEFAULT(e))     
             else:
                 import sentence_transformers
 
@@ -443,6 +458,12 @@ async def get_rag_config(request: Request, user=Depends(get_admin_user)):
         "RAG_RERANKING_ENGINE": request.app.state.config.RAG_RERANKING_ENGINE,
         "RAG_EXTERNAL_RERANKER_URL": request.app.state.config.RAG_EXTERNAL_RERANKER_URL,
         "RAG_EXTERNAL_RERANKER_API_KEY": request.app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
+        "RAG_OPENAI_RERANKER_URL": request.app.state.config.RAG_OPENAI_RERANKER_URL,
+        "RAG_OPENAI_RERANKER_API_KEY": request.app.state.config.RAG_OPENAI_RERANKER_API_KEY,
+        "RAG_OPENAI_RERANKER_MODEL": request.app.state.config.RAG_OPENAI_RERANKER_MODEL,
+        "RAG_OPENAI_RERANKER_TEMPERATURE": request.app.state.config.RAG_OPENAI_RERANKER_TEMPERATURE,
+        "RAG_OPENAI_RERANKER_USE_RANKGPT": request.app.state.config.RAG_OPENAI_RERANKER_USE_RANKGPT,
+        "RAG_OPENAI_RERANKER_MAX_LENGTH": request.app.state.config.RAG_OPENAI_RERANKER_MAX_LENGTH,
         # Chunking settings
         "TEXT_SPLITTER": request.app.state.config.TEXT_SPLITTER,
         "CHUNK_SIZE": request.app.state.config.CHUNK_SIZE,
@@ -617,6 +638,12 @@ class ConfigForm(BaseModel):
     RAG_RERANKING_ENGINE: Optional[str] = None
     RAG_EXTERNAL_RERANKER_URL: Optional[str] = None
     RAG_EXTERNAL_RERANKER_API_KEY: Optional[str] = None
+    RAG_OPENAI_RERANKER_API_KEY: Optional[str] = None
+    RAG_OPENAI_RERANKER_MODEL: Optional[str] = None
+    RAG_OPENAI_RERANKER_TEMPERATURE: Optional[float] = None
+    RAG_OPENAI_RERANKER_USE_RANKGPT: Optional[bool] = None
+    RAG_OPENAI_RERANKER_MAX_LENGTH: Optional[int] = None
+    RAG_OPENAI_RERANKER_URL: Optional[str] = None
 
     # Chunking settings
     TEXT_SPLITTER: Optional[str] = None
@@ -868,6 +895,37 @@ async def update_rag_config(
         else request.app.state.config.RAG_EXTERNAL_RERANKER_API_KEY
     )
 
+    request.app.state.config.RAG_OPENAI_RERANKER_API_KEY = (
+        form_data.RAG_OPENAI_RERANKER_API_KEY
+        if form_data.RAG_OPENAI_RERANKER_API_KEY is not None
+        else request.app.state.config.RAG_OPENAI_RERANKER_API_KEY
+    )
+    request.app.state.config.RAG_OPENAI_RERANKER_URL = (
+        form_data.RAG_OPENAI_RERANKER_URL
+        if form_data.RAG_OPENAI_RERANKER_URL is not None
+        else request.app.state.config.RAG_OPENAI_RERANKER_URL
+    )
+    request.app.state.config.RAG_OPENAI_RERANKER_MODEL = (
+        form_data.RAG_OPENAI_RERANKER_MODEL
+        if form_data.RAG_OPENAI_RERANKER_MODEL is not None
+        else request.app.state.config.RAG_OPENAI_RERANKER_MODEL
+    )
+    request.app.state.config.RAG_OPENAI_RERANKER_TEMPERATURE = (
+        form_data.RAG_OPENAI_RERANKER_TEMPERATURE
+        if form_data.RAG_OPENAI_RERANKER_TEMPERATURE is not None
+        else request.app.state.config.RAG_OPENAI_RERANKER_TEMPERATURE
+    )
+    request.app.state.config.RAG_OPENAI_RERANKER_USE_RANKGPT = (
+        form_data.RAG_OPENAI_RERANKER_USE_RANKGPT
+        if form_data.RAG_OPENAI_RERANKER_USE_RANKGPT is not None
+        else request.app.state.config.RAG_OPENAI_RERANKER_USE_RANKGPT
+    )
+    request.app.state.config.RAG_OPENAI_RERANKER_MAX_LENGTH = (
+        form_data.RAG_OPENAI_RERANKER_MAX_LENGTH
+        if form_data.RAG_OPENAI_RERANKER_MAX_LENGTH is not None
+        else request.app.state.config.RAG_OPENAI_RERANKER_MAX_LENGTH
+    )
+
     log.info(
         f"Updating reranking model: {request.app.state.config.RAG_RERANKING_MODEL} to {form_data.RAG_RERANKING_MODEL}"
     )
@@ -882,6 +940,7 @@ async def update_rag_config(
             if (
                 request.app.state.config.ENABLE_RAG_HYBRID_SEARCH
                 and not request.app.state.config.BYPASS_EMBEDDING_AND_RETRIEVAL
+                and request.app.state.config.RAG_RERANKING_ENGINE != "openai"
             ):
                 request.app.state.rf = get_rf(
                     request.app.state.config.RAG_RERANKING_ENGINE,
@@ -896,6 +955,26 @@ async def update_rag_config(
                     request.app.state.config.RAG_RERANKING_MODEL,
                     request.app.state.rf,
                 )
+            elif request.app.state.config.RAG_RERANKING_ENGINE == "openai":
+                request.app.state.rf = get_rf(
+                    engine=request.app.state.config.RAG_RERANKING_ENGINE,
+                    reranking_model=request.app.state.config.RAG_OPENAI_RERANKER_MODEL,
+                    external_reranker_url=request.app.state.config.RAG_EXTERNAL_RERANKER_URL,
+                    external_reranker_api_key=request.app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
+                    auto_update=True,
+                    openai_reranker_api_key=request.app.state.config.RAG_OPENAI_RERANKER_API_KEY,
+                    openai_reranker_url=request.app.state.config.RAG_OPENAI_RERANKER_URL,
+                    openai_reranker_model=request.app.state.config.RAG_OPENAI_RERANKER_MODEL
+                )
+
+                request.app.state.RERANKING_FUNCTION = get_reranking_function(
+                    request.app.state.config.RAG_RERANKING_ENGINE,
+                    request.app.state.config.RAG_OPENAI_RERANKER_MODEL,
+                    request.app.state.rf,
+                )
+            else:
+                request.app.state.rf = None
+                request.app.state.RERANKING_FUNCTION = None
         except Exception as e:
             log.error(f"Error loading reranking model: {e}")
             request.app.state.config.ENABLE_RAG_HYBRID_SEARCH = False

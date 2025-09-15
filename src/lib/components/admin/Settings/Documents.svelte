@@ -969,6 +969,8 @@
 												on:change={(e) => {
 													if (e.target.value === 'external') {
 														RAGConfig.RAG_RERANKING_MODEL = '';
+													} else if (e.target.value === 'openai') {
+														RAGConfig.RAG_RERANKING_MODEL = '';
 													} else if (e.target.value === '') {
 														RAGConfig.RAG_RERANKING_MODEL = 'BAAI/bge-reranker-v2-m3';
 													}
@@ -976,6 +978,7 @@
 											>
 												<option value="">{$i18n.t('Default (SentenceTransformers)')}</option>
 												<option value="external">{$i18n.t('External')}</option>
+												<option value="openai">{$i18n.t('OpenAI')}</option>
 											</select>
 										</div>
 									</div>
@@ -995,25 +998,55 @@
 												required={false}
 											/>
 										</div>
-									{/if}
-								</div>
 
-								<div class="  mb-2.5 flex flex-col w-full">
-									<div class=" mb-1 text-xs font-medium">{$i18n.t('Reranking Model')}</div>
-
-									<div class="">
-										<div class="flex w-full">
-											<div class="flex-1 mr-2">
-												<input
-													class="flex-1 w-full text-sm bg-transparent outline-hidden"
-													placeholder={$i18n.t('Set reranking model (e.g. {{model}})', {
-														model: 'BAAI/bge-reranker-v2-m3'
-													})}
-													bind:value={RAGConfig.RAG_RERANKING_MODEL}
-												/>
+										<div class="  mb-2.5 flex flex-col w-full">
+											<div class=" mb-1 text-xs font-medium">{$i18n.t('Reranking Model')}</div>
+		
+											<div class="">
+												<div class="flex w-full">
+													<div class="flex-1 mr-2">
+														<input
+															class="flex-1 w-full text-sm bg-transparent outline-hidden"
+															placeholder={$i18n.t('Set reranking model (e.g. {{model}})', {
+																model: 'BAAI/bge-reranker-v2-m3'
+															})}
+															bind:value={RAGConfig.RAG_RERANKING_MODEL}
+														/>
+													</div>
+												</div>
 											</div>
 										</div>
-									</div>
+									{/if}
+									{#if RAGConfig.RAG_RERANKING_ENGINE === 'openai'}
+										<div class="  mb-2.5 flex flex-row w-full">
+											<input
+												class="flex-1 w-full text-sm bg-transparent outline-hidden"
+												placeholder={$i18n.t('API URL')}
+												bind:value={RAGConfig.RAG_OPENAI_RERANKER_URL}
+												required
+											/>
+
+											<SensitiveInput
+												placeholder={$i18n.t('API Key')}
+												bind:value={RAGConfig.RAG_OPENAI_RERANKER_API_KEY}
+												required={false}
+											/>
+											</div>
+
+											<div class="  mb-2.5 flex w-full justify-between">
+												<div class=" self-center text-xs font-medium">
+													{$i18n.t('Reranking Model')}
+												</div>
+												<input
+													class="flex items-center relative"
+													placeholder={$i18n.t('Set reranking model (e.g. {{model}})', {
+														model: 'gpt-4o-mini'
+													})}
+													bind:value={RAGConfig.RAG_OPENAI_RERANKER_MODEL}
+													required
+												/>
+											</div>
+									{/if}
 								</div>
 							{/if}
 

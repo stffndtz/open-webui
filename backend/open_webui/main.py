@@ -207,6 +207,12 @@ from open_webui.config import (
     RAG_EXTERNAL_RERANKER_API_KEY,
     RAG_RERANKING_MODEL_AUTO_UPDATE,
     RAG_RERANKING_MODEL_TRUST_REMOTE_CODE,
+    RAG_OPENAI_RERANKER_API_KEY,
+    RAG_OPENAI_RERANKER_MODEL,
+    RAG_OPENAI_RERANKER_TEMPERATURE,
+    RAG_OPENAI_RERANKER_USE_RANKGPT,
+    RAG_OPENAI_RERANKER_MAX_LENGTH,
+    RAG_OPENAI_RERANKER_URL,
     RAG_EMBEDDING_ENGINE,
     RAG_EMBEDDING_BATCH_SIZE,
     RAG_TOP_K,
@@ -840,6 +846,12 @@ app.state.config.RAG_RERANKING_ENGINE = RAG_RERANKING_ENGINE
 app.state.config.RAG_RERANKING_MODEL = RAG_RERANKING_MODEL
 app.state.config.RAG_EXTERNAL_RERANKER_URL = RAG_EXTERNAL_RERANKER_URL
 app.state.config.RAG_EXTERNAL_RERANKER_API_KEY = RAG_EXTERNAL_RERANKER_API_KEY
+app.state.config.RAG_OPENAI_RERANKER_API_KEY = RAG_OPENAI_RERANKER_API_KEY
+app.state.config.RAG_OPENAI_RERANKER_MODEL = RAG_OPENAI_RERANKER_MODEL
+app.state.config.RAG_OPENAI_RERANKER_TEMPERATURE = RAG_OPENAI_RERANKER_TEMPERATURE
+app.state.config.RAG_OPENAI_RERANKER_USE_RANKGPT = RAG_OPENAI_RERANKER_USE_RANKGPT
+app.state.config.RAG_OPENAI_RERANKER_MAX_LENGTH = RAG_OPENAI_RERANKER_MAX_LENGTH
+app.state.config.RAG_OPENAI_RERANKER_URL = RAG_OPENAI_RERANKER_URL
 
 app.state.config.RAG_TEMPLATE = RAG_TEMPLATE
 
@@ -933,16 +945,32 @@ try:
     if (
         app.state.config.ENABLE_RAG_HYBRID_SEARCH
         and not app.state.config.BYPASS_EMBEDDING_AND_RETRIEVAL
+        and app.state.config.RAG_RERANKING_ENGINE != "openai"
     ):
         app.state.rf = get_rf(
-            app.state.config.RAG_RERANKING_ENGINE,
-            app.state.config.RAG_RERANKING_MODEL,
-            app.state.config.RAG_EXTERNAL_RERANKER_URL,
-            app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
-            RAG_RERANKING_MODEL_AUTO_UPDATE,
+            engine=app.state.config.RAG_RERANKING_ENGINE,
+            reranking_model=app.state.config.RAG_RERANKING_MODEL,
+            external_reranker_url=app.state.config.RAG_EXTERNAL_RERANKER_URL,
+            external_reranker_api_key=app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
+            auto_update=RAG_RERANKING_MODEL_AUTO_UPDATE,
+            openai_reranker_api_key="",
+            openai_reranker_url="",
+            openai_reranker_model="",
         )
     else:
-        app.state.rf = None
+        if app.state.config.RAG_RERANKING_ENGINE == "openai":
+            app.state.rf = get_rf(
+                engine=app.state.config.RAG_RERANKING_ENGINE,
+                reranking_model=app.state.config.RAG_OPENAI_RERANKER_MODEL,
+                external_reranker_url="",
+                external_reranker_api_key="",
+                auto_update=RAG_RERANKING_MODEL_AUTO_UPDATE,
+                openai_reranker_api_key=app.state.config.RAG_OPENAI_RERANKER_API_KEY,
+                openai_reranker_url=app.state.config.RAG_OPENAI_RERANKER_URL,
+                openai_reranker_model=app.state.config.RAG_OPENAI_RERANKER_MODEL,
+            )
+        else:
+            app.state.rf = None
 except Exception as e:
     log.error(f"Error updating models: {e}")
     pass

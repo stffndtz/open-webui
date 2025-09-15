@@ -57,6 +57,7 @@ type RAGConfigForm = {
 	content_extraction?: ContentExtractConfigForm;
 	web_loader_ssl_verification?: boolean;
 	youtube?: YoutubeConfigForm;
+
 };
 
 export const updateRAGConfig = async (token: string, payload: RAGConfigForm) => {
@@ -257,6 +258,11 @@ export const getRerankingConfig = async (token: string) => {
 
 type RerankingModelUpdateForm = {
 	reranking_model: string;
+	openai_reranker_model: string;
+	openai_reranker_temperature: number;
+	openai_reranker_use_rankgpt: boolean;
+	openai_reranker_max_length: number;
+	openai_reranker_url: string;
 };
 
 export const updateRerankingConfig = async (token: string, payload: RerankingModelUpdateForm) => {
