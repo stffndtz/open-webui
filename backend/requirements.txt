@@ -153,4 +153,7 @@ opentelemetry-instrumentation-aiohttp-client==0.58b0
 
 ## Tooling for 42Frontiers
 python-docx==1.1.2
-python_redlines @ git+https://github.com/JSv4/Python-Redlines@v0.0.5
+# python_redlines @ git+https://github.com/JSv4/Python-Redlines@v0.0.5
+# Commented out: requires .NET SDK to build. Install .NET SDK if needed:
+# macOS: brew install --cask dotnet-sdk
+# Or visit: https://dotnet.microsoft.com/download
