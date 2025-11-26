@@ -186,10 +186,23 @@ class DoclingLoader:
 
 
 class Loader:
+    # Metadata fields to keep from Document Intelligence (strip bloat like styles, spans)
+    KEEP_METADATA_FIELDS = {
+        "name", "source", "hash", "file_id", "headings", "title",
+        "page", "page_number", "created_by", "embedding_config", "score"
+    }
+
     def __init__(self, engine: str = "", **kwargs):
         self.engine = engine
         self.user = kwargs.get("user", None)
         self.kwargs = kwargs
+
+    def _clean_metadata(self, metadata: dict) -> dict:
+        """Remove bloat metadata from Document Intelligence (styles, spans, etc.)."""
+        if not metadata:
+            return metadata
+        # Only keep essential fields, strip styles/spans/isHandwritten bloat
+        return {k: v for k, v in metadata.items() if k in self.KEEP_METADATA_FIELDS}
 
     def load(
         self, filename: str, file_content_type: str, file_path: str
@@ -199,7 +212,8 @@ class Loader:
 
         return [
             Document(
-                page_content=ftfy.fix_text(doc.page_content), metadata=doc.metadata
+                page_content=ftfy.fix_text(doc.page_content),
+                metadata=self._clean_metadata(doc.metadata)
             )
             for doc in docs
         ]
