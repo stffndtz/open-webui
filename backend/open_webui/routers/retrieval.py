@@ -32,6 +32,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter, TokenTextSpl
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 from langchain_core.documents import Document
 
+from open_webui.utils.splitters import TableAwareMarkdownSplitter
+
 from open_webui.models.files import FileModel, FileUpdateForm, Files
 from open_webui.models.knowledge import Knowledges
 from open_webui.storage.provider import Storage
@@ -1439,6 +1441,28 @@ def save_docs_to_vector_db(
                     )
 
             docs = md_split_docs
+        elif request.app.state.config.TEXT_SPLITTER == "table_aware":
+            log.info("Using table-aware markdown splitter")
+
+            table_splitter = TableAwareMarkdownSplitter(
+                chunk_size=request.app.state.config.CHUNK_SIZE,
+                chunk_overlap=request.app.state.config.CHUNK_OVERLAP,
+            )
+
+            table_split_docs = []
+            for doc in docs:
+                split_chunks = table_splitter.split_text(doc.page_content)
+
+                # Preserve original document metadata
+                for split_chunk in split_chunks:
+                    table_split_docs.append(
+                        Document(
+                            page_content=split_chunk.page_content,
+                            metadata={**doc.metadata, **split_chunk.metadata},
+                        )
+                    )
+
+            docs = table_split_docs
         else:
             raise ValueError(ERROR_MESSAGES.DEFAULT("Invalid text splitter"))
 
