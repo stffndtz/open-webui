@@ -14,18 +14,21 @@
 	import { WEBUI_API_BASE_URL, WEBUI_BASE_URL } from '$lib/constants';
 	import { WEBUI_NAME, config, user, socket } from '$lib/stores';
 
-	import { generateInitialsImage, canvasPixelTest, querystringValue } from '$lib/utils';
+	import { generateInitialsImage, canvasPixelTest } from '$lib/utils';
 
 	import Spinner from '$lib/components/common/Spinner.svelte';
 	import OnBoarding from '$lib/components/OnBoarding.svelte';
 	import SensitiveInput from '$lib/components/common/SensitiveInput.svelte';
 	import * as microsoftTeams from '@microsoft/teams-js';
+	import { redirect } from '@sveltejs/kit';
 
 	const i18n = getContext('i18n') as any;
 
 	let loaded = false;
 
 	let mode = $config?.features.enable_ldap ? 'ldap' : 'signin';
+
+	let form = null;
 
 	let name = '';
 	let email = '';
@@ -34,8 +37,7 @@
 
 	let ldapUsername = '';
 
-
-	const setSessionUser = async (sessionUser: any) => {
+	const setSessionUser = async (sessionUser, redirectPath: string | null = null) => {
 		if (sessionUser) {
 			console.log(sessionUser);
 			toast.success($i18n.t(`You're now logged in.`));
@@ -46,8 +48,12 @@
 			await user.set(sessionUser);
 			await config.set(await getBackendConfig());
 
-			const redirectPath = querystringValue('redirect') || '/';
+			if (!redirectPath) {
+				redirectPath = $page.url.searchParams.get('redirect') || '/';
+			}
+
 			goto(redirectPath);
+			localStorage.removeItem('redirectPath');
 		}
 	};
 
@@ -96,161 +102,7 @@
 		}
 	};
 
-	// Check if we're in a Teams environment
-	// const checkTeamsEnvironment = async () => {
-	// 	console.log('Checking Teams environment');
-
-	// 	// Try to initialize the SDK
-	// 	await microsoftTeams.app.initialize();
-	// 	console.log('Teams SDK initialized');
-
-	// 	// Try to get context
-	// 	const context = await microsoftTeams.app.getContext();
-	// 	console.log('Teams context:', context);
-
-	// 	try {
-	// 		// Check if Teams SDK is available
-	// 		if (typeof microsoftTeams === 'undefined') {
-	// 			return false;
-	// 		}
-
-	// 		// Try to initialize the SDK
-	// 		await microsoftTeams.app.initialize();
-
-	// 		// Try to get context
-	// 		const context = await microsoftTeams.app.getContext();
-
-	// 		// Check if we're in Teams (not standalone)
-	// 		return (
-	// 			context &&
-	// 			context.app &&
-	// 			context.app.host &&
-	// 			((context.app.host.name as string) === 'teams' ||
-	// 				(context.app.host.name as string) === 'teamsModern')
-	// 		);
-	// 	} catch (error) {
-	// 		console.log('Not in Teams environment:', error);
-	// 		return false;
-	// 	}
-	// };
-
-	// // Get Teams user info if available
-	// const getTeamsUserInfo = async () => {
-	// 	try {
-	// 		// Try to get user info from context first (this is always available)
-	// 		const context = await microsoftTeams.app.getContext();
-	// 		if (context && context.user) {
-	// 			return {
-	// 				id: context.user.id,
-	// 				email: (context.user as any).email,
-	// 				name: context.user.displayName
-	// 			};
-	// 		}
-
-	// 		return null;
-	// 	} catch (error) {
-	// 		console.log('Could not get Teams user info:', error);
-	// 		return null;
-	// 	}
-	// };
-
-	// // Attempt silent authentication using Teams context
-	// const attemptSilentAuth = async (userInfo: any) => {
-	// 	try {
-	// 		// For Teams apps, we can use the user context directly
-	// 		// This avoids the authentication context issue
-	// 		if (userInfo && userInfo.id) {
-	// 			// Try to authenticate using the Teams user ID
-	// 			const response = await fetch(`${WEBUI_BASE_URL}/oauth/microsoft/silent`, {
-	// 				method: 'POST',
-	// 				headers: {
-	// 					'Content-Type': 'application/json'
-	// 				},
-	// 				body: JSON.stringify({
-	// 					teams_user_id: userInfo.id,
-	// 					teams_user_email: userInfo.email,
-	// 					teams_user_name: userInfo.name
-	// 				})
-	// 			});
-
-	// 			if (response.ok) {
-	// 				const authData = await response.json();
-	// 				if (authData.token) {
-	// 					localStorage.token = authData.token;
-	// 					const sessionUser = await getSessionUser(authData.token).catch((error) => {
-	// 						console.log('Silent auth failed, falling back to full auth:', error);
-	// 						return null;
-	// 					});
-
-	// 					if (sessionUser) {
-	// 						await setSessionUser(sessionUser);
-	// 						return true; // Success
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-
-	// 		return false; // Silent auth failed
-	// 	} catch (error) {
-	// 		console.log('Silent authentication failed, proceeding with full auth:', error);
-	// 		return false;
-	// 	}
-	// };
-
-	// const handleTeamsAuthentication = async () => {
-	// 	try {
-	// 		// Check if we're in a Teams environment
-	// 		const isTeams = await checkTeamsEnvironment();
-
-	// 		console.log('isTeams:', isTeams);
-	// 		if (!isTeams) {
-	// 			console.log('Not in Teams environment, skipping Teams authentication');
-	// 			return;
-	// 		}
-
-	// 		// Initialize Teams SDK
-	// 		await microsoftTeams.app.initialize();
-	// 		console.log('Teams SDK initialized successfully');
-
-	// 		// Get Teams context
-	// 		const context = await microsoftTeams.app.getContext();
-	// 		console.log('Teams context:', context);
-
-	// 		// Check if user is already authenticated in Teams
-	// 		const userInfo = await getTeamsUserInfo();
-	// 		if (userInfo) {
-	// 			console.log('User already authenticated in Teams, attempting silent auth');
-
-	// 			// Try silent authentication first
-	// 			const silentAuthResult = await attemptSilentAuth(userInfo);
-	// 			if (silentAuthResult) {
-	// 				return; // Success, exit early
-	// 			}
-	// 		}
-
-	// 		// For Teams apps, we need to use a different approach
-	// 		// Instead of using Teams authentication API, we'll redirect to our OAuth flow
-	// 		// This avoids the context restriction issue
-	// 		const authUrl = `${WEBUI_BASE_URL}/oauth/microsoft/login`;
-
-	// 		// Use Teams navigation to open the auth URL
-	// 		try {
-	// 			await microsoftTeams.navigateToTab({
-	// 				tabName: 'auth',
-	// 				entityId: 'open-webui-auth'
-	// 			});
-	// 		} catch (navError) {
-	// 			console.log('Could not navigate to tab, using direct redirect:', navError);
-	// 			// Fallback to direct navigation
-	// 			window.location.href = authUrl;
-	// 		}
-	// 	} catch (error) {
-	// 		console.error('Teams authentication failed:', error);
-	// 		toast.error('Teams authentication failed. Please try again.');
-	// 	}
-	// };
-
-	const checkOauthCallback = async () => {
+	const oauthCallbackHandler = async () => {
 		// Get the value of the 'token' cookie
 		function getCookie(name) {
 			const match = document.cookie.match(
@@ -270,12 +122,13 @@
 			return null;
 		});
 		console.log('Page: Session user:', sessionUser);
+
 		if (!sessionUser) {
 			return;
 		}
 
 		localStorage.token = token;
-		await setSessionUser(sessionUser);
+		await setSessionUser(sessionUser, localStorage.getItem('redirectPath') || null);
 	};
 
 	let onboarding = false;
@@ -304,12 +157,16 @@
 	}
 
 	onMount(async () => {
+		const redirectPath = $page.url.searchParams.get('redirect');
 		if ($user !== undefined) {
-			const redirectPath = querystringValue('redirect') || '/';
-			goto(redirectPath);
+			goto(redirectPath || '/');
+		} else {
+			if (redirectPath) {
+				localStorage.setItem('redirectPath', redirectPath);
+			}
 		}
 		
-		await checkOauthCallback();
+		await oauthCallbackHandler();
 		// Check if we're in Teams environment and handle authentication
 		try {
 			await microsoftTeams.app.initialize();
@@ -322,6 +179,14 @@
 		} catch (error) {
 			console.log('Not in Teams environment or Teams SDK not available:', error);
 		}
+
+		const error = $page.url.searchParams.get('error');
+		if (error) {
+			toast.error(error);
+		}
+
+		// await oauthCallbackHandler();
+		form = $page.url.searchParams.get('form');
 
 		loaded = true;
 		setLogoImage();
@@ -362,7 +227,7 @@
 				{#if ($config?.features.auth_trusted_header ?? false) || $config?.features.auth === false}
 					<div class=" my-auto pb-10 w-full sm:max-w-md">
 						<div
-							class="flex items-center justify-center gap-3 text-xl sm:text-2xl text-center font-semibold dark:text-gray-200"
+							class="flex items-center justify-center gap-3 text-xl sm:text-2xl text-center font-medium dark:text-gray-200"
 						>
 							<div>
 								{$i18n.t('Signing in to {{WEBUI_NAME}}', { WEBUI_NAME: $WEBUI_NAME })}
@@ -417,7 +282,7 @@
 									{/if}
 								</div>
 
-								{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
+								{#if $config?.features.enable_login_form || $config?.features.enable_ldap || form}
 									<div class="flex flex-col mt-4">
 										{#if mode === 'signup'}
 											<div class="mb-2">
@@ -508,7 +373,7 @@
 									</div>
 								{/if}
 								<div class="mt-5">
-									{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
+									{#if $config?.features.enable_login_form || $config?.features.enable_ldap || form}
 										{#if mode === 'ldap'}
 											<button
 												class="bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
@@ -557,7 +422,7 @@
 							{#if Object.keys($config?.oauth?.providers ?? {}).length > 0}
 								<div class="inline-flex items-center justify-center w-full">
 									<hr class="w-32 h-px my-4 border-0 dark:bg-gray-100/10 bg-gray-700/10" />
-									{#if $config?.features.enable_login_form || $config?.features.enable_ldap}
+									{#if $config?.features.enable_login_form || $config?.features.enable_ldap || form}
 										<span
 											class="px-3 text-sm font-medium text-gray-900 dark:text-white bg-transparent"
 											>{$i18n.t('or')}</span
@@ -673,6 +538,16 @@
 													provider: $config?.oauth?.providers?.oidc ?? 'SSO'
 												})}</span
 											>
+										</button>
+									{/if}
+									{#if $config?.oauth?.providers?.feishu}
+										<button
+											class="flex justify-center items-center bg-gray-700/5 hover:bg-gray-700/10 dark:bg-gray-100/5 dark:hover:bg-gray-100/10 dark:text-gray-300 dark:hover:text-white transition w-full rounded-full font-medium text-sm py-2.5"
+											on:click={() => {
+												window.location.href = `${WEBUI_BASE_URL}/oauth/feishu/login`;
+											}}
+										>
+											<span>{$i18n.t('Continue with {{provider}}', { provider: 'Feishu' })}</span>
 										</button>
 									{/if}
 								</div>

@@ -10,12 +10,16 @@ from pydantic import BaseModel
 
 
 from open_webui.models.auths import Auths
+from open_webui.models.oauth_sessions import OAuthSessions
+
 from open_webui.models.groups import Groups
 from open_webui.models.chats import Chats
 from open_webui.models.users import (
     UserModel,
-    UserListResponse,
+    UserGroupIdsModel,
+    UserGroupIdsListResponse,
     UserInfoListResponse,
+    UserIdNameListResponse,
     UserRoleUpdateForm,
     Users,
     UserSettings,
@@ -32,7 +36,12 @@ from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import SRC_LOG_LEVELS, STATIC_DIR
 
 
-from open_webui.utils.auth import get_admin_user, get_password_hash, get_verified_user
+from open_webui.utils.auth import (
+    get_admin_user,
+    get_password_hash,
+    get_verified_user,
+    validate_password,
+)
 from open_webui.utils.access_control import get_permissions, has_permission
 
 
@@ -67,7 +76,7 @@ async def get_active_users(
 PAGE_ITEM_COUNT = 30
 
 
-@router.get("/", response_model=UserListResponse)
+@router.get("/", response_model=UserGroupIdsListResponse)
 async def get_users(
     query: Optional[str] = None,
     order_by: Optional[str] = None,
@@ -88,7 +97,25 @@ async def get_users(
     if direction:
         filter["direction"] = direction
 
-    return Users.get_users(filter=filter, skip=skip, limit=limit)
+    result = Users.get_users(filter=filter, skip=skip, limit=limit)
+
+    users = result["users"]
+    total = result["total"]
+
+    return {
+        "users": [
+            UserGroupIdsModel(
+                **{
+                    **user.model_dump(),
+                    "group_ids": [
+                        group.id for group in Groups.get_groups_by_member_id(user.id)
+                    ],
+                }
+            )
+            for user in users
+        ],
+        "total": total,
+    }
 
 
 @router.get("/all", response_model=UserInfoListResponse)
@@ -96,6 +123,23 @@ async def get_all_users(
     user=Depends(get_admin_user),
 ):
     return Users.get_users()
+
+
+@router.get("/search", response_model=UserIdNameListResponse)
+async def search_users(
+    query: Optional[str] = None,
+    user=Depends(get_verified_user),
+):
+    limit = PAGE_ITEM_COUNT
+
+    page = 1  # Always return the first page for search
+    skip = (page - 1) * limit
+
+    filter = {}
+    if query:
+        filter["query"] = query
+
+    return Users.get_users(filter=filter, skip=skip, limit=limit)
 
 
 ############################
@@ -130,13 +174,25 @@ class WorkspacePermissions(BaseModel):
     knowledge: bool = False
     prompts: bool = False
     tools: bool = False
+    models_import: bool = False
+    models_export: bool = False
+    prompts_import: bool = False
+    prompts_export: bool = False
+    tools_import: bool = False
+    tools_export: bool = False
 
 
 class SharingPermissions(BaseModel):
-    public_models: bool = True
-    public_knowledge: bool = True
-    public_prompts: bool = True
+    models: bool = False
+    public_models: bool = False
+    knowledge: bool = False
+    public_knowledge: bool = False
+    prompts: bool = False
+    public_prompts: bool = False
+    tools: bool = False
     public_tools: bool = True
+    notes: bool = False
+    public_notes: bool = True
 
 
 class ChatPermissions(BaseModel):
@@ -146,6 +202,10 @@ class ChatPermissions(BaseModel):
     params: bool = True
     file_upload: bool = True
     delete: bool = True
+    delete_message: bool = True
+    continue_response: bool = True
+    regenerate_response: bool = True
+    rate_response: bool = True
     edit: bool = True
     share: bool = True
     export: bool = True
@@ -158,6 +218,7 @@ class ChatPermissions(BaseModel):
 
 
 class FeaturesPermissions(BaseModel):
+    api_keys: bool = False
     direct_tool_servers: bool = False
     web_search: bool = True
     image_generation: bool = True
@@ -336,6 +397,18 @@ async def get_user_by_id(user_id: str, user=Depends(get_verified_user)):
         )
 
 
+@router.get("/{user_id}/oauth/sessions")
+async def get_user_oauth_sessions_by_id(user_id: str, user=Depends(get_admin_user)):
+    sessions = OAuthSessions.get_sessions_by_user_id(user_id)
+    if sessions and len(sessions) > 0:
+        return sessions
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=ERROR_MESSAGES.USER_NOT_FOUND,
+        )
+
+
 ############################
 # GetUserProfileImageById
 ############################
@@ -434,8 +507,12 @@ async def update_user_by_id(
                 )
 
         if form_data.password:
+            try:
+                validate_password(form_data.password)
+            except Exception as e:
+                raise HTTPException(400, detail=str(e))
+
             hashed = get_password_hash(form_data.password)
-            log.debug(f"hashed: {hashed}")
             Auths.update_user_password_by_id(user_id, hashed)
 
         Auths.update_email_by_id(user_id, form_data.email.lower())

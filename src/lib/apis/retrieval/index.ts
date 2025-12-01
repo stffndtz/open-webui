@@ -57,6 +57,7 @@ type RAGConfigForm = {
 	content_extraction?: ContentExtractConfigForm;
 	web_loader_ssl_verification?: boolean;
 	youtube?: YoutubeConfigForm;
+
 };
 
 export const updateRAGConfig = async (token: string, payload: RAGConfigForm) => {
@@ -257,6 +258,11 @@ export const getRerankingConfig = async (token: string) => {
 
 type RerankingModelUpdateForm = {
 	reranking_model: string;
+	openai_reranker_model: string;
+	openai_reranker_temperature: number;
+	openai_reranker_use_rankgpt: boolean;
+	openai_reranker_max_length: number;
+	openai_reranker_url: string;
 };
 
 export const updateRerankingConfig = async (token: string, payload: RerankingModelUpdateForm) => {
@@ -294,42 +300,6 @@ export interface SearchDocument {
 	collection_name: string;
 	filenames: string[];
 }
-
-export const processFile = async (
-	token: string,
-	file_id: string,
-	collection_name: string | null = null
-) => {
-	let error = null;
-
-	const res = await fetch(`${RETRIEVAL_API_BASE_URL}/process/file`, {
-		method: 'POST',
-		headers: {
-			Accept: 'application/json',
-			'Content-Type': 'application/json',
-			authorization: `Bearer ${token}`
-		},
-		body: JSON.stringify({
-			file_id: file_id,
-			collection_name: collection_name ? collection_name : undefined
-		})
-	})
-		.then(async (res) => {
-			if (!res.ok) throw await res.json();
-			return res.json();
-		})
-		.catch((err) => {
-			error = err.detail;
-			console.error(err);
-			return null;
-		});
-
-	if (error) {
-		throw error;
-	}
-
-	return res;
-};
 
 export const processYoutubeVideo = async (token: string, url: string) => {
 	let error = null;
