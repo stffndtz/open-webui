@@ -228,6 +228,12 @@ from open_webui.config import (
     RAG_EXTERNAL_RERANKER_API_KEY,
     RAG_RERANKING_MODEL_AUTO_UPDATE,
     RAG_RERANKING_MODEL_TRUST_REMOTE_CODE,
+    RAG_OPENAI_RERANKER_API_KEY,
+    RAG_OPENAI_RERANKER_MODEL,
+    RAG_OPENAI_RERANKER_TEMPERATURE,
+    RAG_OPENAI_RERANKER_USE_RANKGPT,
+    RAG_OPENAI_RERANKER_MAX_LENGTH,
+    RAG_OPENAI_RERANKER_URL,
     RAG_EMBEDDING_ENGINE,
     RAG_EMBEDDING_BATCH_SIZE,
     ENABLE_ASYNC_EMBEDDING,
@@ -276,6 +282,9 @@ from open_webui.config import (
     DOCUMENT_INTELLIGENCE_MODEL,
     MISTRAL_OCR_API_BASE_URL,
     MISTRAL_OCR_API_KEY,
+    AZURE_MISTRAL_OCR_API_KEY,
+    AZURE_MISTRAL_OCR_ENDPOINT_URL,
+    AZURE_MISTRAL_OCR_MODEL_NAME,
     RAG_TEXT_SPLITTER,
     TIKTOKEN_ENCODING_NAME,
     PDF_EXTRACT_IMAGES,
@@ -875,6 +884,9 @@ app.state.config.DOCUMENT_INTELLIGENCE_KEY = DOCUMENT_INTELLIGENCE_KEY
 app.state.config.DOCUMENT_INTELLIGENCE_MODEL = DOCUMENT_INTELLIGENCE_MODEL
 app.state.config.MISTRAL_OCR_API_BASE_URL = MISTRAL_OCR_API_BASE_URL
 app.state.config.MISTRAL_OCR_API_KEY = MISTRAL_OCR_API_KEY
+app.state.config.AZURE_MISTRAL_OCR_API_KEY = AZURE_MISTRAL_OCR_API_KEY
+app.state.config.AZURE_MISTRAL_OCR_ENDPOINT_URL = AZURE_MISTRAL_OCR_ENDPOINT_URL
+app.state.config.AZURE_MISTRAL_OCR_MODEL_NAME = AZURE_MISTRAL_OCR_MODEL_NAME
 app.state.config.MINERU_API_MODE = MINERU_API_MODE
 app.state.config.MINERU_API_URL = MINERU_API_URL
 app.state.config.MINERU_API_KEY = MINERU_API_KEY
@@ -895,6 +907,12 @@ app.state.config.RAG_RERANKING_ENGINE = RAG_RERANKING_ENGINE
 app.state.config.RAG_RERANKING_MODEL = RAG_RERANKING_MODEL
 app.state.config.RAG_EXTERNAL_RERANKER_URL = RAG_EXTERNAL_RERANKER_URL
 app.state.config.RAG_EXTERNAL_RERANKER_API_KEY = RAG_EXTERNAL_RERANKER_API_KEY
+app.state.config.RAG_OPENAI_RERANKER_API_KEY = RAG_OPENAI_RERANKER_API_KEY
+app.state.config.RAG_OPENAI_RERANKER_MODEL = RAG_OPENAI_RERANKER_MODEL
+app.state.config.RAG_OPENAI_RERANKER_TEMPERATURE = RAG_OPENAI_RERANKER_TEMPERATURE
+app.state.config.RAG_OPENAI_RERANKER_USE_RANKGPT = RAG_OPENAI_RERANKER_USE_RANKGPT
+app.state.config.RAG_OPENAI_RERANKER_MAX_LENGTH = RAG_OPENAI_RERANKER_MAX_LENGTH
+app.state.config.RAG_OPENAI_RERANKER_URL = RAG_OPENAI_RERANKER_URL
 
 app.state.config.RAG_TEMPLATE = RAG_TEMPLATE
 
@@ -989,15 +1007,32 @@ try:
     if (
         app.state.config.ENABLE_RAG_HYBRID_SEARCH
         and not app.state.config.BYPASS_EMBEDDING_AND_RETRIEVAL
+        and app.state.config.RAG_RERANKING_ENGINE != "openai"
     ):
         app.state.rf = get_rf(
-            app.state.config.RAG_RERANKING_ENGINE,
-            app.state.config.RAG_RERANKING_MODEL,
-            app.state.config.RAG_EXTERNAL_RERANKER_URL,
-            app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
+            engine=app.state.config.RAG_RERANKING_ENGINE,
+            reranking_model=app.state.config.RAG_RERANKING_MODEL,
+            external_reranker_url=app.state.config.RAG_EXTERNAL_RERANKER_URL,
+            external_reranker_api_key=app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
+            auto_update=RAG_RERANKING_MODEL_AUTO_UPDATE,
+            openai_reranker_api_key="",
+            openai_reranker_url="",
+            openai_reranker_model="",
         )
     else:
-        app.state.rf = None
+        if app.state.config.RAG_RERANKING_ENGINE == "openai":
+            app.state.rf = get_rf(
+                engine=app.state.config.RAG_RERANKING_ENGINE,
+                reranking_model=app.state.config.RAG_OPENAI_RERANKER_MODEL,
+                external_reranker_url="",
+                external_reranker_api_key="",
+                auto_update=RAG_RERANKING_MODEL_AUTO_UPDATE,
+                openai_reranker_api_key=app.state.config.RAG_OPENAI_RERANKER_API_KEY,
+                openai_reranker_url=app.state.config.RAG_OPENAI_RERANKER_URL,
+                openai_reranker_model=app.state.config.RAG_OPENAI_RERANKER_MODEL,
+            )
+        else:
+            app.state.rf = None
 except Exception as e:
     log.error(f"Error updating models: {e}")
     pass

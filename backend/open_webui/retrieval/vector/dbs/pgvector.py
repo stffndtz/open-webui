@@ -89,7 +89,7 @@ class DocumentChunk(Base):
 
 class PgvectorClient(VectorDBBase):
     def __init__(self) -> None:
-
+        log.info(f"Initializing PgvectorClient with PGVECTOR_DB_URL: {PGVECTOR_DB_URL}")
         # if no pgvector uri, use the existing database connection
         if not PGVECTOR_DB_URL:
             from open_webui.internal.db import Session
@@ -108,10 +108,12 @@ class PgvectorClient(VectorDBBase):
                         poolclass=QueuePool,
                     )
                 else:
+                    log.info(f"Creating engine with NullPool")
                     engine = create_engine(
                         PGVECTOR_DB_URL, pool_pre_ping=True, poolclass=NullPool
                     )
             else:
+                log.info(f"Creating engine with QueuePool")
                 engine = create_engine(PGVECTOR_DB_URL, pool_pre_ping=True)
 
             SessionLocal = sessionmaker(
@@ -166,6 +168,14 @@ class PgvectorClient(VectorDBBase):
             connection = self.session.connection()
             Base.metadata.create_all(bind=connection)
 
+            # Create an index on the vector column if it doesn't exist
+            self.session.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_document_chunk_vector "
+                    "ON document_chunk USING ivfflat (vector vector_cosine_ops) WITH (lists = 100);"
+                )
+            )
+            log.info(f"Creating index on vector column")
             index_method, index_options = self._vector_index_configuration()
             self._ensure_vector_index(index_method, index_options)
 
@@ -175,6 +185,7 @@ class PgvectorClient(VectorDBBase):
                     "ON document_chunk (collection_name);"
                 )
             )
+            log.info(f"Creating index on collection name column")
             self.session.commit()
             log.info("Initialization complete.")
         except Exception as e:
@@ -259,6 +270,7 @@ class PgvectorClient(VectorDBBase):
         Check if the VECTOR_LENGTH matches the existing vector column dimension in the database.
         Raises an exception if there is a mismatch.
         """
+        log.info(f"Checking vector length")
         metadata = MetaData()
         try:
             # Attempt to reflect the 'document_chunk' table
@@ -337,22 +349,37 @@ class PgvectorClient(VectorDBBase):
                 log.info(f"Encrypted & inserted {len(items)} into '{collection_name}'")
 
             else:
-                new_items = []
+                
+                # Prepare all data first
+                bulk_data = []
                 for item in items:
+                    json_metadata = json.dumps(item["metadata"])
                     vector = self.adjust_vector_length(item["vector"])
-                    new_chunk = DocumentChunk(
-                        id=item["id"],
-                        vector=vector,
-                        collection_name=collection_name,
-                        text=item["text"],
-                        vmetadata=process_metadata(item["metadata"]),
-                    )
-                    new_items.append(new_chunk)
-                self.session.bulk_save_objects(new_items)
-                self.session.commit()
-                log.info(
-                    f"Inserted {len(new_items)} items into collection '{collection_name}'."
+                    bulk_data.append({
+                        "id": item["id"],
+                        "vector": vector,
+                        "collection_name": collection_name,
+                        "text": item["text"],
+                        "metadata_text": json_metadata,
+                    })
+
+                # Single bulk execute
+                self.session.execute(
+                    text(
+                        """
+                        INSERT INTO document_chunk
+                        (id, vector, collection_name, text, vmetadata)
+                        VALUES (
+                            :id, :vector, :collection_name, :text, :metadata_text
+                        )
+                        ON CONFLICT (id) DO NOTHING
+                        """
+                    ),
+                    bulk_data  # Pass the entire list
                 )
+
+                self.session.commit()
+                log.info(f"Inserted {len(items)} items into collection '{collection_name}'.")
         except Exception as e:
             self.session.rollback()
             log.exception(f"Error during insert: {e}")

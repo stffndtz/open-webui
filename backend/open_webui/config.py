@@ -1799,7 +1799,7 @@ FOLLOW_UP_GENERATION_PROMPT_TEMPLATE = PersistentConfig(
 DEFAULT_FOLLOW_UP_GENERATION_PROMPT_TEMPLATE = """### Task:
 Suggest 3-5 relevant follow-up questions or prompts that the user might naturally ask next in this conversation as a **user**, based on the chat history, to help continue or deepen the discussion.
 ### Guidelines:
-- Write all follow-up questions from the user’s point of view, directed to the assistant.
+- Write all follow-up questions from the user's point of view, directed to the assistant.
 - Make questions concise, clear, and directly related to the discussed topic(s).
 - Only suggest follow-ups that make sense given the chat content and do not repeat what was already covered.
 - If the conversation is very short or not specific, suggest more general (but relevant) follow-ups the user might ask.
@@ -2608,6 +2608,25 @@ MISTRAL_OCR_API_KEY = PersistentConfig(
     os.getenv("MISTRAL_OCR_API_KEY", ""),
 )
 
+# Azure Mistral OCR configuration
+AZURE_MISTRAL_OCR_API_KEY = PersistentConfig(
+    "AZURE_MISTRAL_OCR_API_KEY",
+    "rag.azure_mistral_ocr_api_key",
+    os.getenv("AZURE_MISTRAL_OCR_API_KEY", ""),
+)
+
+AZURE_MISTRAL_OCR_ENDPOINT_URL = PersistentConfig(
+    "AZURE_MISTRAL_OCR_ENDPOINT_URL",
+    "rag.azure_mistral_ocr_endpoint_url",
+    os.getenv("AZURE_MISTRAL_OCR_ENDPOINT_URL", ""),
+)
+
+AZURE_MISTRAL_OCR_MODEL_NAME = PersistentConfig(
+    "AZURE_MISTRAL_OCR_MODEL_NAME",
+    "rag.azure_mistral_ocr_model_name",
+    os.getenv("AZURE_MISTRAL_OCR_MODEL_NAME", "mistral-document-ai-2505"),
+)
+
 BYPASS_EMBEDDING_AND_RETRIEVAL = PersistentConfig(
     "BYPASS_EMBEDDING_AND_RETRIEVAL",
     "rag.bypass_embedding_and_retrieval",
@@ -2791,6 +2810,41 @@ RAG_EXTERNAL_RERANKER_API_KEY = PersistentConfig(
     os.environ.get("RAG_EXTERNAL_RERANKER_API_KEY", ""),
 )
 
+# OpenAI Reranker configuration
+RAG_OPENAI_RERANKER_API_KEY = PersistentConfig(
+    "RAG_OPENAI_RERANKER_API_KEY",
+    "rag.openai_reranker_api_key",
+    os.getenv("RAG_OPENAI_RERANKER_API_KEY", ""),
+)
+
+RAG_OPENAI_RERANKER_MODEL = PersistentConfig(
+    "RAG_OPENAI_RERANKER_MODEL",
+    "rag.openai_reranker_model",
+    os.getenv("RAG_OPENAI_RERANKER_MODEL", "gpt-4-1106-preview"),
+)
+
+RAG_OPENAI_RERANKER_TEMPERATURE = PersistentConfig(
+    "RAG_OPENAI_RERANKER_TEMPERATURE",
+    "rag.openai_reranker_temperature",
+    os.getenv("RAG_OPENAI_RERANKER_TEMPERATURE", "0.0"),
+)
+
+RAG_OPENAI_RERANKER_USE_RANKGPT = PersistentConfig(
+    "RAG_OPENAI_RERANKER_USE_RANKGPT",
+    "rag.openai_reranker_use_rankgpt",
+    os.getenv("RAG_OPENAI_RERANKER_USE_RANKGPT", "True").lower() == "true",
+)
+RAG_OPENAI_RERANKER_MAX_LENGTH = PersistentConfig(
+    "RAG_OPENAI_RERANKER_MAX_LENGTH",
+    "rag.openai_reranker_max_length",
+    os.getenv("RAG_OPENAI_RERANKER_MAX_LENGTH", "300"),
+)
+
+RAG_OPENAI_RERANKER_URL = PersistentConfig(
+    "RAG_OPENAI_RERANKER_URL",
+    "rag.openai_reranker_url",
+    os.getenv("RAG_OPENAI_RERANKER_URL", ""),
+)
 
 RAG_TEXT_SPLITTER = PersistentConfig(
     "RAG_TEXT_SPLITTER",

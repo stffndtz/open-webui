@@ -1502,13 +1502,23 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             except Exception as e:
                 log.exception(e)
 
-    try:
-        form_data, flags = await chat_completion_files_handler(
-            request, form_data, extra_params, user
-        )
-        sources.extend(flags.get("sources", []))
-    except Exception as e:
-        log.exception(e)
+    # Check if any tool with file_handler=True is active - if so, skip RAG for files
+    # The tool will handle files directly instead of using hybrid search
+    has_file_handler_tool = any(
+        tool.get("metadata", {}).get("file_handler", False)
+        for tool in tools_dict.values()
+    ) if tools_dict else False
+
+    if not has_file_handler_tool:
+        try:
+            form_data, flags = await chat_completion_files_handler(
+                request, form_data, extra_params, user
+            )
+            sources.extend(flags.get("sources", []))
+        except Exception as e:
+            log.exception(e)
+    else:
+        log.debug("Skipping chat_completion_files_handler - file_handler tool active")
 
     # If context is not empty, insert it into the messages
     if len(sources) > 0:

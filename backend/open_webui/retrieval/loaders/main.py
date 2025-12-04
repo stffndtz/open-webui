@@ -26,6 +26,7 @@ from langchain_core.documents import Document
 from open_webui.retrieval.loaders.external_document import ExternalDocumentLoader
 
 from open_webui.retrieval.loaders.mistral import MistralLoader
+from open_webui.retrieval.loaders.azure_mistral_ocr import AzureMistralOCRLoader
 from open_webui.retrieval.loaders.datalab_marker import DatalabMarkerLoader
 from open_webui.retrieval.loaders.mineru import MinerULoader
 
@@ -185,10 +186,23 @@ class DoclingLoader:
 
 
 class Loader:
+    # Metadata fields to keep from Document Intelligence (strip bloat like styles, spans)
+    KEEP_METADATA_FIELDS = {
+        "name", "source", "hash", "file_id", "headings", "title",
+        "page", "page_number", "created_by", "embedding_config", "score"
+    }
+
     def __init__(self, engine: str = "", **kwargs):
         self.engine = engine
         self.user = kwargs.get("user", None)
         self.kwargs = kwargs
+
+    def _clean_metadata(self, metadata: dict) -> dict:
+        """Remove bloat metadata from Document Intelligence (styles, spans, etc.)."""
+        if not metadata:
+            return metadata
+        # Only keep essential fields, strip styles/spans/isHandwritten bloat
+        return {k: v for k, v in metadata.items() if k in self.KEEP_METADATA_FIELDS}
 
     def load(
         self, filename: str, file_content_type: str, file_path: str
@@ -198,7 +212,8 @@ class Loader:
 
         return [
             Document(
-                page_content=ftfy.fix_text(doc.page_content), metadata=doc.metadata
+                page_content=ftfy.fix_text(doc.page_content),
+                metadata=self._clean_metadata(doc.metadata)
             )
             for doc in docs
         ]
@@ -323,8 +338,9 @@ class Loader:
                     api_endpoint=self.kwargs.get("DOCUMENT_INTELLIGENCE_ENDPOINT"),
                     api_key=self.kwargs.get("DOCUMENT_INTELLIGENCE_KEY"),
                     # api_model='prebuilt-read',
+                    # api_model='prebuilt-layout',
                     api_version='2024-11-30',
-                    #mode='page' # we do this so the loader doesn't try to get the text from the lines instead of the content
+                    mode='markdown' # we do this so the loader doesn't try to get the text from the lines instead of the content
                     # TODO: add support for multi-page documents
                     api_model=self.kwargs.get("DOCUMENT_INTELLIGENCE_MODEL"),
                 )
@@ -352,9 +368,30 @@ class Loader:
             in ["pdf"]  # Mistral OCR currently only supports PDF and images
         ):
             loader = MistralLoader(
-                base_url=self.kwargs.get("MISTRAL_OCR_API_BASE_URL"),
-                api_key=self.kwargs.get("MISTRAL_OCR_API_KEY"),
-                file_path=file_path,
+                api_key=self.kwargs.get("MISTRAL_OCR_API_KEY"), file_path=file_path
+            )
+        elif (
+            self.engine == "azure_mistral_ocr"
+            and self.kwargs.get("AZURE_MISTRAL_OCR_API_KEY") != ""
+            and self.kwargs.get("AZURE_MISTRAL_OCR_ENDPOINT_URL") != ""
+            and self.kwargs.get("AZURE_MISTRAL_OCR_MODEL_NAME") != ""
+            and file_ext
+            in ["pdf"]  # Azure Mistral OCR currently only supports PDF
+        ):
+            loader = AzureMistralOCRLoader(
+                api_key=self.kwargs.get("AZURE_MISTRAL_OCR_API_KEY"),
+                endpoint_url=self.kwargs.get("AZURE_MISTRAL_OCR_ENDPOINT_URL"),
+                model_name=self.kwargs.get("AZURE_MISTRAL_OCR_MODEL_NAME"),
+                file_path=file_path
+            )
+        elif (
+            self.engine == "external"
+            and self.kwargs.get("MISTRAL_OCR_API_KEY") != ""
+            and file_ext
+            in ["pdf"]  # Mistral OCR currently only supports PDF and images
+        ):
+            loader = MistralLoader(
+                api_key=self.kwargs.get("MISTRAL_OCR_API_KEY"), file_path=file_path
             )
         else:
             if file_ext == "pdf":

@@ -37,8 +37,11 @@ RUN apk add --no-cache git
 COPY package.json package-lock.json ./
 RUN npm ci --force
 
+ENV GENERATE_SOURCEMAP=false
+
 COPY . .
 ENV APP_BUILD_HASH=${BUILD_HASH}
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN npm run build
 
 ######## WebUI backend ########
@@ -123,6 +126,41 @@ RUN apt-get update && \
     python3-dev \
     ffmpeg libsm6 libxext6 \
     && rm -rf /var/lib/apt/lists/*
+
+# install .NET SDK for later usage
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    mkdir -p /app/.dotnet && curl -fsSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh && \
+    bash dotnet-install.sh --version 8.0.404 --install-dir /app/.dotnet && \
+    chown -R $UID:$GID /app/.dotnet && \
+    apt-get remove -y curl && apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*;
+
+# Add .NET to PATH for all users
+ENV PATH="/app/.dotnet:${PATH}"
+
+RUN if [ "$USE_OLLAMA" = "true" ]; then \
+    apt-get update && \
+    # Install pandoc and netcat
+    apt-get install -y --no-install-recommends git build-essential pandoc netcat-openbsd curl && \
+    apt-get install -y --no-install-recommends gcc python3-dev && \
+    # for RAG OCR
+    apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6 && \
+    # install helper tools
+    apt-get install -y --no-install-recommends curl jq && \
+    # install ollama
+    curl -fsSL https://ollama.com/install.sh | sh && \
+    # cleanup
+    rm -rf /var/lib/apt/lists/*; \
+    else \
+    apt-get update && \
+    # Install pandoc, netcat and gcc
+    apt-get install -y --no-install-recommends git build-essential pandoc gcc netcat-openbsd curl jq && \
+    apt-get install -y --no-install-recommends gcc python3-dev && \
+    # for RAG OCR
+    apt-get install -y --no-install-recommends ffmpeg libsm6 libxext6 && \
+    # cleanup
+    rm -rf /var/lib/apt/lists/*; \
+    fi
 
 # install python dependencies
 COPY --chown=$UID:$GID ./backend/requirements.txt ./requirements.txt
