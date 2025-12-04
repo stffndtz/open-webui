@@ -6,10 +6,11 @@ from urllib.parse import quote
 
 from open_webui.env import ENABLE_FORWARD_USER_INFO_HEADERS, SRC_LOG_LEVELS
 from open_webui.retrieval.models.base_reranker import BaseReranker
+from open_webui.utils.headers import include_user_info_headers
 
 
 log = logging.getLogger(__name__)
-log.setLevel(SRC_LOG_LEVELS["RAG"])
+log.setLevel("DEBUG")
 
 
 class ExternalReranker(BaseReranker):
@@ -40,22 +41,17 @@ class ExternalReranker(BaseReranker):
             log.info(f"ExternalReranker:predict:model {self.model}")
             log.info(f"ExternalReranker:predict:query {query}")
 
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            }
+
+            if ENABLE_FORWARD_USER_INFO_HEADERS and user:
+                headers = include_user_info_headers(headers, user)
+
             r = requests.post(
                 f"{self.url}",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {self.api_key}",
-                    **(
-                        {
-                            "X-OpenWebUI-User-Name": quote(user.name, safe=" "),
-                            "X-OpenWebUI-User-Id": user.id,
-                            "X-OpenWebUI-User-Email": user.email,
-                            "X-OpenWebUI-User-Role": user.role,
-                        }
-                        if ENABLE_FORWARD_USER_INFO_HEADERS and user
-                        else {}
-                    ),
-                },
+                headers=headers,
                 json=payload,
             )
 
@@ -64,6 +60,7 @@ class ExternalReranker(BaseReranker):
 
             if "results" in data:
                 sorted_results = sorted(data["results"], key=lambda x: x["index"])
+                log.info(f"ExternalReranker:predict:sorted_results {[result["relevance_score"] for result in sorted_results]}")
                 return [result["relevance_score"] for result in sorted_results]
             else:
                 log.error("No results found in external reranking response")
