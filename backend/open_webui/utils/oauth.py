@@ -1507,16 +1507,6 @@ class OAuthManager:
                     default_permissions=request.app.state.config.USER_PERMISSIONS,
                 )
 
-        jwt_token = create_token(
-            data={"id": user.id},
-            expires_delta=parse_duration(auth_manager_config.JWT_EXPIRES_IN),
-        )
-        print(f"JWT token: {jwt_token}")    
-        if auth_manager_config.ENABLE_OAUTH_GROUP_MANAGEMENT and user.role != "admin":
-            self.update_user_groups(
-                user=user,
-                user_data=user_data,
-                default_permissions=request.app.state.config.USER_PERMISSIONS,
         except Exception as e:
             log.error(f"Error during OAuth process: {e}")
             error_message = (
