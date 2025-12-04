@@ -150,16 +150,11 @@ def get_rf(
     reranking_model: Optional[str] = None,
     external_reranker_url: str = "",
     external_reranker_api_key: str = "",
-<<<<<<< HEAD
     auto_update: bool = RAG_RERANKING_MODEL_AUTO_UPDATE,
-||||||| 69674163e
-    auto_update: bool = False,
-=======
     auto_update: bool = False,
     openai_reranker_api_key: str = "",
     openai_reranker_url: str = "",
     openai_reranker_model: str = "",
->>>>>>> main-owui
 ):
     rf = None
     if reranking_model:
