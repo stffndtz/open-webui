@@ -1,0 +1,8 @@
+# Quarterly Fund Report Agent - Test Dependencies
+
+# PDF processing
+pymupdf>=1.24.0
+
+# API clients (install one or both)
+openai>=1.0.0
+anthropic>=0.18.0

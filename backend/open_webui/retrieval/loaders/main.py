@@ -322,16 +322,18 @@ class Loader:
                     file_path=file_path,
                     api_endpoint=self.kwargs.get("DOCUMENT_INTELLIGENCE_ENDPOINT"),
                     api_key=self.kwargs.get("DOCUMENT_INTELLIGENCE_KEY"),
-                    api_model='prebuilt-read',
+                    # api_model='prebuilt-read',
                     api_version='2024-11-30',
                     #mode='page' # we do this so the loader doesn't try to get the text from the lines instead of the content
                     # TODO: add support for multi-page documents
+                    api_model=self.kwargs.get("DOCUMENT_INTELLIGENCE_MODEL"),
                 )
             else:
                 loader = AzureAIDocumentIntelligenceLoader(
                     file_path=file_path,
                     api_endpoint=self.kwargs.get("DOCUMENT_INTELLIGENCE_ENDPOINT"),
                     azure_credential=DefaultAzureCredential(),
+                    api_model=self.kwargs.get("DOCUMENT_INTELLIGENCE_MODEL"),
                 )
         elif self.engine == "mineru" and file_ext in [
             "pdf"
