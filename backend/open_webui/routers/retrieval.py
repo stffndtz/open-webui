@@ -93,8 +93,6 @@ from open_webui.config import (
     ENV,
     RAG_EMBEDDING_MODEL_AUTO_UPDATE,
     RAG_EMBEDDING_MODEL_TRUST_REMOTE_CODE,
-    RAG_RERANKING_MODEL_AUTO_UPDATE,
-    RAG_RERANKING_MODEL_TRUST_REMOTE_CODE,
     UPLOAD_DIR,
     DEFAULT_LOCALE,
     RAG_EMBEDDING_CONTENT_PREFIX,
@@ -1029,7 +1027,7 @@ async def update_rag_config(
                     reranking_model=request.app.state.config.RAG_OPENAI_RERANKER_MODEL,
                     external_reranker_url=request.app.state.config.RAG_EXTERNAL_RERANKER_URL,
                     external_reranker_api_key=request.app.state.config.RAG_EXTERNAL_RERANKER_API_KEY,
-                    auto_update=True,
+                    auto_update=request.app.state.config.RAG_RERANKING_MODEL_AUTO_UPDATE,
                     openai_reranker_api_key=request.app.state.config.RAG_OPENAI_RERANKER_API_KEY,
                     openai_reranker_url=request.app.state.config.RAG_OPENAI_RERANKER_URL,
                     openai_reranker_model=request.app.state.config.RAG_OPENAI_RERANKER_MODEL
