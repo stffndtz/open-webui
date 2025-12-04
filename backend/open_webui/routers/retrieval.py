@@ -151,7 +151,6 @@ def get_rf(
     external_reranker_url: str = "",
     external_reranker_api_key: str = "",
     auto_update: bool = RAG_RERANKING_MODEL_AUTO_UPDATE,
-    auto_update: bool = False,
     openai_reranker_api_key: str = "",
     openai_reranker_url: str = "",
     openai_reranker_model: str = "",
