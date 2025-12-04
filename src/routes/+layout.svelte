@@ -2,12 +2,8 @@
 	import { io } from 'socket.io-client';
 	import { spring } from 'svelte/motion';
 	import PyodideWorker from '$lib/workers/pyodide.worker?worker';
-<<<<<<< HEAD
 	import * as microsoftTeams from '@microsoft/teams-js';
-||||||| 0b5feb51e
-=======
 	import { Toaster, toast } from 'svelte-sonner';
->>>>>>> main-owui
 
 	let loadingProgress = spring(0, {
 		stiffness: 0.05
@@ -305,15 +301,7 @@
 			}
 
 			const res = await executeToolServer(
-<<<<<<< HEAD
-				(toolServer?.auth_type ?? 'bearer') === 'bearer'
-					? (toolServer?.key as string)
-					: localStorage.token || '',
-||||||| 0b5feb51e
-				(toolServer?.auth_type ?? 'bearer') === 'bearer' ? toolServer?.key : localStorage.token,
-=======
 				toolServerToken,
->>>>>>> main-owui
 				toolServer.url,
 				data?.name,
 				data?.params,
@@ -496,14 +484,8 @@
 		}
 	};
 
-<<<<<<< HEAD
-	const channelEventHandler = async (event: any) => {
-||||||| 0b5feb51e
-	const channelEventHandler = async (event) => {
-=======
 	const channelEventHandler = async (event) => {
 		console.log('channelEventHandler', event);
->>>>>>> main-owui
 		if (event.data?.type === 'typing') {
 			return;
 		}
