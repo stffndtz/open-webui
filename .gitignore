@@ -19,6 +19,8 @@ CLAUDE.md
 # C extensions
 *.so
 
+42f-tools/
+
 # Pyodide distribution
 static/pyodide/*
 !static/pyodide/pyodide-lock.json

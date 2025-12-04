@@ -1,9 +1,0 @@
-# API keys - never commit
-.env
-
-# Test outputs
-outputs/
-
-# Python
-__pycache__/
-*.pyc
