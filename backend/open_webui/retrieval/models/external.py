@@ -60,7 +60,7 @@ class ExternalReranker(BaseReranker):
 
             if "results" in data:
                 sorted_results = sorted(data["results"], key=lambda x: x["index"])
-                log.info(f"ExternalReranker:predict:sorted_results {[result["relevance_score"] for result in sorted_results]}")
+                log.info(f"ExternalReranker:predict:sorted_results {[result['relevance_score'] for result in sorted_results]}")
                 return [result["relevance_score"] for result in sorted_results]
             else:
                 log.error("No results found in external reranking response")
