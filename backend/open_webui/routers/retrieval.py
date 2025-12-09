@@ -182,7 +182,7 @@ def get_rf(
                 except Exception as e:
                     log.error(f"ExternalReranking: {e}")
                     raise Exception(ERROR_MESSAGES.DEFAULT(e))
-            if engine == "openai":
+            elif engine == "openai":
                 try:
                     from open_webui.retrieval.models.openai_reranker import OpenAIReranker
 
