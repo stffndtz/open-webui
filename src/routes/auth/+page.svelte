@@ -318,7 +318,7 @@
 			}
 		}
 		
-		await checkOauthCallbackHandler();
+		await oauthCallbackHandler();
 		// Check if we're in Teams environment and handle authentication
 		try {
 			await microsoftTeams.app.initialize();
