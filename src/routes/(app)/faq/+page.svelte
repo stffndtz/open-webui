@@ -1,10 +1,8 @@
 <script>
 	import { getContext, onMount } from 'svelte';
-	import { goto } from '$app/navigation';
-
 	const i18n = getContext('i18n');
 
-	import { mobile, showSidebar, user, WEBUI_NAME } from '$lib/stores';
+	import { mobile, showSidebar, WEBUI_NAME } from '$lib/stores';
 
 	import Tooltip from '$lib/components/common/Tooltip.svelte';
 	import Sidebar from '$lib/components/icons/Sidebar.svelte';
@@ -16,79 +14,90 @@
 	let query = '';
 	let selectedCategory = '';
 
-	// FAQ data from Laila Knowledge base
 	const faqItems = [
 		{
 			id: 1,
 			category: 'getting-started',
 			question: 'How do I start a new chat?',
-			answer: `Click "New Chat" (or the "+" button) to begin a fresh conversation with Laila. You can choose which model to use before sending your first message. Each chat is independent unless you explicitly share or copy content between them. Each chat is private unless you explicitly share it with others.`
+			answer: `Click "New Chat" (or the "+" button) to begin a fresh conversation. You can choose which model to use before sending your first message. Each chat is independent unless you explicitly share or copy content between them. Each chat is private unless you explicitly share it with others.`,
+			images: ['/faq/new-chat-1.png', '/faq/new-chat-2.png']
 		},
 		{
 			id: 2,
 			category: 'features',
 			question: 'How do I use web search?',
-			answer: `You can prefix a URL with # (or start your prompt with #) to fetch and incorporate external web content into the chat. In a chat you can activate the web search button so the AI can search online for up-to-date information.`
+			answer: `You can prefix a URL with # (or start your prompt with #) to fetch and incorporate external web content into the chat. In a chat you can activate the web search button so the AI can search online for up-to-date information.`,
+			images: ['/faq/web-search-1.png', '/faq/web-search-2.png']
 		},
 		{
 			id: 3,
 			category: 'features',
 			question: 'How do I use a saved prompt?',
-			answer: `Use the / command in the chat input to open prompt presets (saved prompts).`
+			answer: `Use the / command in the chat input to open prompt presets (saved prompts).`,
+			images: ['/faq/use-saved-prompt.png']
 		},
 		{
 			id: 4,
 			category: 'features',
 			question: 'How do I save and share a prompt?',
-			answer: `In your workspace (German: Arbeitsbereich), go to "Prompts". In the "Prompts" area, press the "+" and define a new prompt template. Under "access" you can share the prompt with your team or the entire organization.`
+			answer: `In your workspace (German: Arbeitsbereich), go to "Prompts". In the "Prompts" area, press the "+" and define a new prompt template. Under "access" you can share the prompt with your team or the entire organization.`,
+			images: ['/faq/save-share-prompt-1.png', '/faq/save-share-prompt-2.png', '/faq/save-share-prompt-3.png']
 		},
 		{
 			id: 5,
 			category: 'knowledge',
 			question: 'How do I create and share knowledge?',
-			answer: `In your workspace (German: "Arbeitsbereich"), go to "Knowledge". There you can find and add Knowledges. Under the Knowledge tab, you can create a new knowledge by pressing "+" and upload files (PDFs, Word, Excel, PPT, etc.) for Laila to "know". Pressing "Access" allows you to share knowledge with your team (choose "Private" and then a group) or the entire organization ("Public").`
+			answer: `In your workspace (German: "Arbeitsbereich"), go to "Knowledge". There you can find and add Knowledges. Under the Knowledge tab, you can create a new knowledge by pressing "+" and upload files (PDFs, Word, Excel, PPT, etc.) for NORD AI to "know". Pressing "Access" allows you to share knowledge with your team (choose "Private" and then a group) or the entire organization ("Public").`,
+			images: ['/faq/create-share-knowledge.png']
 		},
 		{
 			id: 6,
 			category: 'knowledge',
 			question: 'How do I use knowledge in a chat?',
-			answer: `Within a chat, reference knowledge via the # command or by pointing to a document (e.g., #MyDoc.pdf) to bring its content into the context. The system will retrieve relevant passages from the knowledge base to inform the AI's answers. This helps give more accurate, context-aware responses.`
+			answer: `Within a chat, reference knowledge via the # command or by pointing to a document (e.g., #MyDoc.pdf) to bring its content into the context. The system will retrieve relevant passages from the knowledge base to inform the AI's answers. This helps give more accurate, context-aware responses.`,
+			images: ['/faq/using-knowledge-chat.png']
 		},
 		{
 			id: 7,
 			category: 'organization',
 			question: 'How do I organize my chats in folders?',
-			answer: `You can create folders and drag & drop chats into them for organization (press "+" left of the chat label). This helps keep your workspace tidy, especially as you have many conversations on different topics.`
+			answer: `You can create folders and drag & drop chats into them for organization (press "+" left of the chat label). This helps keep your workspace tidy, especially as you have many conversations on different topics.`,
+			images: ['/faq/organizing-chats-folders.png']
 		},
 		{
 			id: 8,
 			category: 'sharing',
 			question: 'How do I share a chat?',
-			answer: `You can generate shareable chat links to let others view or continue the conversation. Others will get a "snapshot" of the chat and will not be able to see any updates from the chat after sharing. Others can "clone" a chat and continue working on the chat results in their own account.`
+			answer: `You can generate shareable chat links to let others view or continue the conversation. Others will get a "snapshot" of the chat and will not be able to see any updates from the chat after sharing. Others can "clone" a chat and continue working on the chat results in their own account.`,
+			images: ['/faq/share-chat-1.png', '/faq/share-chat-2.png']
 		},
 		{
 			id: 9,
 			category: 'organization',
 			question: 'How does chat history, archiving and exporting work?',
-			answer: `New chats are saved in history by default (unless chat history is disabled). You can archive chats to remove them from the main view. Chats can be exported as JSON, PDF, or TXT for backups or sharing. Importing chats is supported - just drag a JSON file into the sidebar.`
+			answer: `New chats are saved in history by default (unless chat history is disabled). You can archive chats to remove them from the main view. Chats can be exported as JSON, PDF, or TXT for backups or sharing. Importing chats is supported - just drag a JSON file into the sidebar.`,
+			images: ['/faq/chat-history-1.png', '/faq/chat-history-2.png']
 		},
 		{
 			id: 10,
 			category: 'features',
 			question: 'How does memory work across chats?',
-			answer: `Under Settings > Personalization, you can manually add "Memories" (facts or information you want the AI to remember between chats).`
+			answer: `Under Settings > Personalization, you can manually add "Memories" (facts or information you want the AI to remember between chats).`,
+			images: ['/faq/memory-across-chats.png']
 		},
 		{
 			id: 11,
 			category: 'features',
 			question: 'How do I switch modes or use multiple models?',
-			answer: `You can switch the model mid-chat via the "+" in the mode dropdown (top left). The system supports multiple models in parallel (many-model chats), and can merge responses. You can even have multiple instances of the same model in a chat.`
+			answer: `You can switch the model mid-chat via the "+" in the mode dropdown (top left). The system supports multiple models in parallel (many-model chats), and can merge responses. You can even have multiple instances of the same model in a chat.`,
+			images: ['/faq/switching-modes-1.png', '/faq/switching-modes-2.png']
 		},
 		{
 			id: 12,
 			category: 'settings',
 			question: 'How do I customize the interface?',
-			answer: `In your personal settings under "General", you can select between different themes: light, dark, OLED dark modes, and custom chat backgrounds.`
+			answer: `In your personal settings under "General", you can select between different themes: light, dark, OLED dark modes, and custom chat backgrounds.`,
+			images: ['/faq/interface-customization.png']
 		}
 	];
 
@@ -111,11 +120,6 @@
 	});
 
 	onMount(async () => {
-		// Admin-only access
-		if ($user?.role !== 'admin') {
-			await goto('/');
-			return;
-		}
 		loaded = true;
 	});
 </script>
@@ -155,7 +159,6 @@
 				<div class="ml-2 py-0.5 self-center flex items-center justify-between w-full">
 					<div class="flex gap-1 text-sm font-medium py-1">
 						<span>{$i18n.t('FAQ')}</span>
-						<span class="text-xs text-gray-500 dark:text-gray-400 self-center ml-2">(Admin only)</span>
 					</div>
 				</div>
 			</div>
@@ -167,10 +170,10 @@
 				<!-- Title -->
 				<div class="mb-6">
 					<h1 class="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-						{$i18n.t('Laila FAQ')}
+						{$i18n.t('FAQ')}
 					</h1>
 					<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-						{$i18n.t('Find answers to common questions about using Laila.')}
+						{$i18n.t('Find answers to common questions about using NORD AI.')}
 					</p>
 				</div>
 
@@ -243,6 +246,18 @@
 									<p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
 										{item.answer}
 									</p>
+									{#if item.images && item.images.length > 0}
+										<div class="mt-3 flex flex-col gap-3">
+											{#each item.images as src}
+												<img
+													{src}
+													alt={item.question}
+													class="rounded-lg border border-gray-200 dark:border-gray-700 w-full"
+													loading="lazy"
+												/>
+											{/each}
+										</div>
+									{/if}
 									<div class="mt-3">
 										<span
 											class="inline-block px-2 py-0.5 text-xs rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
