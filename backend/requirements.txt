@@ -56,7 +56,7 @@ transformers==4.57.3
 sentence-transformers==5.1.2
 accelerate
 pyarrow==20.0.0 # fix: pin pyarrow version to 20 for rpi compatibility #15897
-einops==0.8.1 
+einops==0.8.1
 
 ftfy==6.3.1
 chardet==5.2.0
@@ -152,8 +152,8 @@ opentelemetry-instrumentation-httpx==0.59b0
 opentelemetry-instrumentation-aiohttp-client==0.59b0
 
 ## Tooling for 42Frontiers
-python-docx==1.1.2
-python_redlines @ git+https://github.com/JSv4/Python-Redlines@v0.0.5
+#python-docx==1.1.2
+#python_redlines @ git+https://github.com/JSv4/Python-Redlines@v0.0.5
 # Commented out: requires .NET SDK to build. Install .NET SDK if needed:
 # macOS: brew install --cask dotnet-sdk
 # Or visit: https://dotnet.microsoft.com/download
